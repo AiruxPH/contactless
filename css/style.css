@@ -303,3 +303,30 @@ html {
     box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6);
     z-index: 10;
 }
+
+/* Hand Cursor */
+#hand-cursor {
+    position: fixed;
+    width: 20px;
+    height: 20px;
+    background: rgba(255, 255, 255, 0.8);
+    border: 2px solid #00f2fe;
+    border-radius: 50%;
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 15px rgba(0, 242, 254, 0.6);
+    z-index: 9999;
+    transition: width 0.2s, height 0.2s, background 0.2s;
+    display: none;
+    /* Hidden until hand detected */
+}
+
+#hand-cursor.active {
+    display: block;
+}
+
+#hand-cursor.pinching {
+    background: #00f2fe;
+    width: 15px;
+    height: 15px;
+}

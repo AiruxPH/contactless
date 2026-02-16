@@ -97,6 +97,33 @@ class GestureDetector {
     drawHandLandmarks(landmarks) {
         const ctx = this.ctx;
 
+        // Visual Cursor Logic
+        const cursor = document.getElementById('hand-cursor');
+        if (cursor) {
+            // Index finger tip is landmark 8
+            const indexTip = landmarks[8];
+            // Mirror X coordinate for intuitive cursor movement
+            const screenX = (1 - indexTip.x) * window.innerWidth;
+            const screenY = indexTip.y * window.innerHeight;
+
+            cursor.style.left = `${screenX}px`;
+            cursor.style.top = `${screenY}px`;
+            cursor.classList.add('active');
+
+            // Add pinching class if thumb and index are close
+            const thumbTip = landmarks[4];
+            const distance = Math.sqrt(
+                Math.pow(indexTip.x - thumbTip.x, 2) +
+                Math.pow(indexTip.y - thumbTip.y, 2)
+            );
+
+            if (distance < 0.05) {
+                cursor.classList.add('pinching');
+            } else {
+                cursor.classList.remove('pinching');
+            }
+        }
+
         // Draw connections
         const connections = [
             [0, 1], [1, 2], [2, 3], [3, 4], // Thumb
@@ -288,8 +315,8 @@ class GestureDetector {
             const magnitude = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
             const speed = magnitude / Math.max(deltaTime, 0.001); // Prevent division by zero
 
-            const threshold = 0.05; // Lowered threshold for detection at different distances
-            const minSpeed = 0.2; // Lowered minimum speed for better distance tolerance
+            const threshold = 0.03; // Lowered from 0.05 for easier detection
+            const minSpeed = 0.15; // Lowered from 0.2 for more relaxed, natural swipes
 
             // Only detect gestures if movement is fast enough
             if (magnitude > threshold && speed > minSpeed) {
