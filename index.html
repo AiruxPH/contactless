@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contactless Navigation - Hand Gesture Control</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <!-- Camera Feed Container -->
+    <div id="camera-container">
+        <video id="webcam" autoplay playsinline muted></video>
+        <canvas id="output"></canvas>
+    </div>
+
+    <!-- Status Panel -->
+    <div id="status-panel">
+        <h3>Gesture Status</h3>
+        <button id="switch-camera-btn"
+            style="width: 100%; margin-bottom: 15px; padding: 10px; cursor: pointer; background: #333; color: white; border: none; border-radius: 4px;">Switch
+            Camera</button>
+        <div class="status-item">
+            <label>Hand Detection:</label>
+            <span id="hand-status">Initializing...</span>
+        </div>
+        <div class="status-item">
+            <label>Current Gesture:</label>
+            <span id="gesture-status">None</span>
+        </div>
+        <div class="status-item">
+            <label>Current Camera:</label>
+            <span id="camera-name">None</span>
+        </div>
+        <div class="status-item">
+            <label>Detected Devices:</label>
+            <div id="device-list" style="font-size: 0.8em; color: #666; margin-top: 5px;">Scanning...</div>
+        </div>
+        <div class="status-item">
+            <label>Last Action:</label>
+            <span id="action-status">None</span>
+        </div>
+    </div>
+
+    <!-- Action Feedback -->
+    <div id="action-feedback"></div>
+
+    <!-- Main Content -->
+    <div id="main-content">
+        <section id="section-1">
+            <h2>Welcome to Contactless Navigation</h2>
+            <div class="instructions">
+                <h4>How to Use:</h4>
+                <ul>
+                    <li><strong>✋ Keep Hand Open:</strong> Gestures only work with an open hand</li>
+                    <li><strong>Index Flick (Up/Down):</strong> Flick fingers to scroll. Faster flick = more distance.
+                    </li>
+                    <li><strong>Palm Tilt (Up/Down):</strong> Tilt and **HOLD** your palm to smoothly auto-scroll.</li>
+                    <li><strong>Swipe Left/Right:</strong> Move hand horizontally to **SNAP** to the next/prev section.
+                    </li>
+                    <li><strong>🤌 Pinch (Thumb+Index):</strong> Contact thumb and index to **CLICK** the screen center.
+                    </li>
+                </ul>
+                <p><strong>💡 Tips:</strong> Use small flicks for precise reading and palm tilts for browsing long
+                    pages. Close your fist to pause detection.</p>
+            </div>
+            <p>This is a demonstration of contactless navigation using hand gestures. The system uses MediaPipe Hand
+                Landmarker to detect your hand movements and translate them into navigation actions.</p>
+            <p>Watch the status panel in the top-left corner to see real-time detection information. The camera feed in
+                the top-right is mirrored (like a mirror) for natural interaction, showing your hand with landmark
+                tracking overlay.</p>
+            <p>Try moving your hand in front of the camera to see the green hand skeleton appear. Then make quick,
+                deliberate swipe gestures to control the page!</p>
+        </section>
+
+        <section id="section-2">
+            <h2>Section 2 - Testing Scroll</h2>
+            <p>This section is here to test the scroll functionality. Try swiping up and down to navigate between
+                sections.</p>
+            <p>The scroll is smooth and controlled, moving 300 pixels at a time. This prevents accidental over-scrolling
+                while still providing responsive navigation.</p>
+            <p>Notice how the "Last Action" in the status panel updates when you perform a gesture. You'll also see a
+                temporary feedback message at the bottom of the screen.</p>
+            <p>The gesture detection has a cooldown period of 600ms to prevent multiple triggers from a single gesture.
+                This makes the interaction feel more natural and controlled while remaining responsive.</p>
+        </section>
+
+        <section id="section-3">
+            <h2>Section 3 - How It Works</h2>
+            <p><strong>Hand Detection:</strong> MediaPipe's Hand Landmarker identifies 21 key points on your hand in
+                real-time, tracking finger positions and hand orientation.</p>
+            <p><strong>Gesture Recognition:</strong> The system analyzes the movement of your wrist (landmark 0) to
+                detect directional swipes. When movement exceeds a threshold in a particular direction, a gesture is
+                recognized.</p>
+            <p><strong>Action Mapping:</strong> Detected gestures are mapped to navigation actions. Currently, vertical
+                swipes control scrolling, while horizontal swipes are detected but not yet mapped to specific actions.
+            </p>
+            <p><strong>Visual Feedback:</strong> The canvas overlay shows your hand skeleton in real-time, the status
+                panel displays detection information, and action feedback appears when gestures are executed.</p>
+        </section>
+
+        <section id="section-4">
+            <h2>Section 4 - Future Features</h2>
+            <p>This is just the beginning! Future enhancements will include:</p>
+            <ul>
+                <li><strong>Zoom Control:</strong> Pinch gestures to zoom in and out of content</li>
+                <li><strong>Click/Select:</strong> Specific hand poses to click on elements</li>
+                <li><strong>Menu Navigation:</strong> Swipe left/right to navigate between pages or sections</li>
+                <li><strong>Custom Gestures:</strong> Define your own gestures for specific actions</li>
+                <li><strong>Multi-hand Support:</strong> Use both hands for more complex interactions</li>
+            </ul>
+            <p>The modular architecture makes it easy to add new gestures and actions as needed.</p>
+        </section>
+
+        <section id="section-5">
+            <h2>Section 5 - Technical Details</h2>
+            <p><strong>Technology Stack:</strong></p>
+            <ul>
+                <li>MediaPipe Hand Landmarker for hand tracking</li>
+                <li>Vanilla JavaScript with ES6 modules</li>
+                <li>HTML5 Canvas for visualization</li>
+                <li>CSS3 for styling and animations</li>
+            </ul>
+            <p><strong>Performance:</strong> The system runs at 30+ FPS on most modern devices with GPU acceleration
+                enabled. Hand detection and gesture recognition happen in real-time with minimal latency.</p>
+            <p><strong>Browser Compatibility:</strong> Works in modern browsers that support WebRTC and WebGL (Chrome,
+                Edge, Firefox, Safari).</p>
+        </section>
+    </div>
+
+    <!-- Initialize Application -->
+    <script type="module">
+        import GestureDetector from './js/gesture-detector.js';
+        import NavigationController from './js/navigation-controller.js';
+
+        const video = document.getElementById('webcam');
+        const canvas = document.getElementById('output');
+        const switchBtn = document.getElementById('switch-camera-btn');
+        const cameraNameSpan = document.getElementById('camera-name');
+        const deviceListDiv = document.getElementById('device-list');
+
+        let currentStream = null;
+        let videoDevices = [];
+        let currentDeviceIndex = 0;
+        let gestureDetector = null;
+        let navigationController = null;
+
+        async function getDevices() {
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                videoDevices = devices.filter(device => device.kind === 'videoinput');
+                console.log('Available video devices:', videoDevices);
+
+                // Update UI list
+                if (deviceListDiv) {
+                    deviceListDiv.innerHTML = videoDevices.map((d, i) =>
+                        `<div style="${i === currentDeviceIndex ? 'color: #4CAF50; font-weight: bold;' : ''}">${d.label || 'Camera ' + (i + 1)}</div>`
+                    ).join('') || 'No cameras found';
+                }
+
+                // Prioritize DroidCam if found and we haven't manually switched
+                const droidCamIndex = videoDevices.findIndex(d => d.label.toLowerCase().includes('droidcam'));
+                if (droidCamIndex !== -1 && currentDeviceIndex === 0) {
+                    currentDeviceIndex = droidCamIndex;
+                    console.log('DroidCam matched at index:', currentDeviceIndex);
+                }
+            } catch (err) {
+                console.error('Error enumerating devices:', err);
+                if (deviceListDiv) deviceListDiv.textContent = 'Error scanning devices';
+            }
+        }
+
+        async function startCamera(deviceId) {
+            console.log('Starting camera with deviceId:', deviceId);
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+            }
+
+            // Try with specific resolution first, then fallback
+            const constraintSets = [
+                { video: { deviceId: deviceId ? { exact: deviceId } : undefined, width: 640, height: 480 } },
+                { video: { deviceId: deviceId ? { exact: deviceId } : undefined } },
+                { video: true }
+            ];
+
+            let lastError = null;
+            for (const constraints of constraintSets) {
+                try {
+                    console.log('Trying constraints:', constraints);
+                    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                    currentStream = stream;
+                    video.srcObject = stream;
+                    await video.play();
+
+                    const track = stream.getVideoTracks()[0];
+                    if (cameraNameSpan) cameraNameSpan.textContent = track.label || 'Unknown Camera';
+
+                    if (!gestureDetector) {
+                        gestureDetector = new GestureDetector(video, canvas);
+                        navigationController = new NavigationController(gestureDetector);
+                    } else {
+                        gestureDetector.video = video;
+                    }
+
+                    const handStatus = document.getElementById('hand-status');
+                    if (handStatus) handStatus.textContent = 'Camera Ready';
+                    console.log('Camera started successfully with label:', track.label);
+                    return; // Success
+                } catch (err) {
+                    lastError = err;
+                    console.warn('Failed with constraints:', constraints, err);
+                }
+            }
+
+            console.error('All camera constraint sets failed:', lastError);
+            const handStatus = document.getElementById('hand-status');
+            if (handStatus) handStatus.textContent = 'Camera Fallback Error';
+        }
+
+        // Initialize application
+        async function initApp() {
+            try {
+                // Request permission first to get device labels
+                console.log('Requesting initial camera permission...');
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                stream.getTracks().forEach(t => t.stop());
+
+                await getDevices();
+                if (videoDevices.length > 0) {
+                    await startCamera(videoDevices[currentDeviceIndex].deviceId);
+                } else {
+                    if (deviceListDiv) deviceListDiv.textContent = 'No cameras detected';
+                    console.error('No video devices returned by enumerateDevices');
+                }
+            } catch (err) {
+                console.error('Initialization error:', err);
+                alert('Camera permission is required for this app.');
+            }
+        }
+
+        initApp();
+
+        // Switch camera logic
+        if (switchBtn) {
+            switchBtn.addEventListener('click', async () => {
+                if (videoDevices.length > 1) {
+                    currentDeviceIndex = (currentDeviceIndex + 1) % videoDevices.length;
+                    console.log('Switching to device index:', currentDeviceIndex);
+                    await startCamera(videoDevices[currentDeviceIndex].deviceId);
+                    await getDevices(); // Refresh list to update highlight
+                } else {
+                    // Try refreshing devices in case one was plugged in
+                    await getDevices();
+                    if (videoDevices.length > 1) {
+                        switchBtn.click();
+                    } else {
+                        alert('Only one camera detected.');
+                    }
+                }
+            });
+        }
+
+        // Initialize detectors after metadata is loaded
+        video.addEventListener('loadedmetadata', () => {
+            console.log('Video metadata loaded');
+        });
+    </script>
+</body>
+
+</html>
