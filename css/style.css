@@ -179,3 +179,127 @@ html {
     margin: 8px 0;
     color: #555;
 }
+
+/* AntiGravity Gallery Section */
+.antigravity-gallery {
+    background: #0a0a0c !important;
+    /* Deep dark ether background */
+    color: #fff;
+    overflow: hidden;
+    padding: 60px 0 !important;
+    max-width: none !important;
+    width: 100%;
+}
+
+.antigravity-gallery h2 {
+    color: #fff;
+    border-color: #444 !important;
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+.gallery-intro {
+    text-align: center;
+    color: #888 !important;
+    margin-bottom: 40px !important;
+}
+
+.gallery-stage {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 60px 0;
+    cursor: grab;
+    /* Custom scrollbar for frictionless look */
+    scrollbar-width: thin;
+    scrollbar-color: #333 transparent;
+}
+
+.gallery-stage::-webkit-scrollbar {
+    height: 6px;
+}
+
+.gallery-stage::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.gallery-stage::-webkit-scrollbar-thumb {
+    background: #333;
+    border-radius: 10px;
+}
+
+.weightless-plane {
+    display: flex;
+    width: 200vw;
+    /* Double the viewport width */
+    padding: 0 5vw;
+    gap: 40px;
+    align-items: center;
+}
+
+.floating-card {
+    min-width: 300px;
+    height: 400px;
+    border-radius: 20px;
+    padding: 30px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    position: relative;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    animation: bobbing 6s ease-in-out infinite;
+    transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.floating-card:nth-child(even) {
+    animation-delay: -3s;
+    animation-duration: 7s;
+}
+
+.floating-card:nth-child(3n) {
+    animation-delay: -1.5s;
+    animation-duration: 5s;
+}
+
+.card-content h3 {
+    font-size: 1.8em;
+    margin-bottom: 10px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.card-content p {
+    color: rgba(255, 255, 255, 0.8) !important;
+    font-size: 1em !important;
+    margin: 0 !important;
+}
+
+/* Gradients for cards */
+.gradient-1 {
+    background: linear-gradient(135deg, #6e45e2 0%, #88d3ce 100%);
+}
+
+.gradient-2 {
+    background: linear-gradient(135deg, #ff0080 0%, #7928ca 100%);
+}
+
+.gradient-3 {
+    background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+}
+
+@keyframes bobbing {
+
+    0%,
+    100% {
+        transform: translateY(0) rotate(0deg);
+    }
+
+    50% {
+        transform: translateY(-20px) rotate(1.5deg);
+    }
+}
+
+.floating-card:hover {
+    transform: translateY(-30px) scale(1.05) rotate(0deg);
+    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6);
+    z-index: 10;
+}

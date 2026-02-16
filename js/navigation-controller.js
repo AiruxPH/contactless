@@ -105,20 +105,36 @@ class NavigationController {
     }
 
     scrollLeft(intensity = 1) {
-        window.scrollBy({
-            left: -this.scrollAmount * intensity,
-            behavior: 'smooth'
-        });
+        const gallery = document.querySelector('.gallery-stage');
+        if (gallery) {
+            gallery.scrollBy({
+                left: -this.scrollAmount * intensity,
+                behavior: 'smooth'
+            });
+        } else {
+            window.scrollBy({
+                left: -this.scrollAmount * intensity,
+                behavior: 'smooth'
+            });
+        }
         this.lastAction = `Scrolled Left (${intensity.toFixed(1)}x)`;
         this.showFeedback('← Scrolling Left');
         this.updateStatus();
     }
 
     scrollRight(intensity = 1) {
-        window.scrollBy({
-            left: this.scrollAmount * intensity,
-            behavior: 'smooth'
-        });
+        const gallery = document.querySelector('.gallery-stage');
+        if (gallery) {
+            gallery.scrollBy({
+                left: this.scrollAmount * intensity,
+                behavior: 'smooth'
+            });
+        } else {
+            window.scrollBy({
+                left: this.scrollAmount * intensity,
+                behavior: 'smooth'
+            });
+        }
         this.lastAction = `Scrolled Right (${intensity.toFixed(1)}x)`;
         this.showFeedback('→ Scrolling Right');
         this.updateStatus();
