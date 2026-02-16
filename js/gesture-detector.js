@@ -247,18 +247,33 @@ class GestureDetector {
         if (this.lastFingerPositions) {
             const deltaTime = (now - this.lastFingerPositions.time) / 1000;
             if (deltaTime > 0) {
-                // Calculate vertical velocity relative to wrist
+                // Calculate velocity relative to wrist
                 const indexVelY = (currentFingers.index.y - this.lastFingerPositions.index.y) / deltaTime;
                 const middleVelY = (currentFingers.middle.y - this.lastFingerPositions.middle.y) / deltaTime;
+                const indexVelX = (currentFingers.index.x - this.lastFingerPositions.index.x) / deltaTime;
+                const middleVelX = (currentFingers.middle.x - this.lastFingerPositions.middle.x) / deltaTime;
 
                 const flickThreshold = 1.2; // Lowered from 1.5 for better sensitivity
 
                 if (!gesture) {
-                    // Swapping labels to match user's reported perception/orientation
-                    if (indexVelY < -flickThreshold || middleVelY < -flickThreshold) {
-                        gesture = 'finger-flick-down'; // Was flick-up
-                    } else if (indexVelY > flickThreshold || middleVelY > flickThreshold) {
-                        gesture = 'finger-flick-up'; // Was flick-down
+                    // Determine if flick is more vertical or horizontal
+                    const maxRelVelY = Math.max(Math.abs(indexVelY), Math.abs(middleVelY));
+                    const maxRelVelX = Math.max(Math.abs(indexVelX), Math.abs(middleVelX));
+
+                    if (maxRelVelY > maxRelVelX && maxRelVelY > flickThreshold) {
+                        // Vertical flicks
+                        if (indexVelY < -flickThreshold || middleVelY < -flickThreshold) {
+                            gesture = 'finger-flick-down';
+                        } else if (indexVelY > flickThreshold || middleVelY > flickThreshold) {
+                            gesture = 'finger-flick-up';
+                        }
+                    } else if (maxRelVelX > flickThreshold) {
+                        // Horizontal flicks (Inverted for mirrored display)
+                        if (indexVelX < -flickThreshold || middleVelX < -flickThreshold) {
+                            gesture = 'finger-flick-right';
+                        } else if (indexVelX > flickThreshold || middleVelX > flickThreshold) {
+                            gesture = 'finger-flick-left';
+                        }
                     }
                 }
             }
@@ -304,9 +319,16 @@ class GestureDetector {
             if (gesture.startsWith('finger-flick') && this.lastFingerPositions) {
                 const deltaTime = (now - this.lastFingerPositions.time) / 1000;
                 if (deltaTime > 0) {
-                    const vIndex = (currentFingers.index.y - this.lastFingerPositions.index.y) / deltaTime;
-                    const vMiddle = (currentFingers.middle.y - this.lastFingerPositions.middle.y) / deltaTime;
-                    data = { velocity: Math.max(Math.abs(vIndex), Math.abs(vMiddle)) };
+                    const vIndexY = (currentFingers.index.y - this.lastFingerPositions.index.y) / deltaTime;
+                    const vMiddleY = (currentFingers.middle.y - this.lastFingerPositions.middle.y) / deltaTime;
+                    const vIndexX = (currentFingers.index.x - this.lastFingerPositions.index.x) / deltaTime;
+                    const vMiddleX = (currentFingers.middle.x - this.lastFingerPositions.middle.x) / deltaTime;
+
+                    const velocity = gesture.includes('left') || gesture.includes('right')
+                        ? Math.max(Math.abs(vIndexX), Math.abs(vMiddleX))
+                        : Math.max(Math.abs(vIndexY), Math.abs(vMiddleY));
+
+                    data = { velocity };
                 }
             }
 

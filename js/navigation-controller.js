@@ -68,6 +68,12 @@ class NavigationController {
                 case 'swipe-right':
                     this.navigatePrev(); // Snap to prev section
                     break;
+                case 'finger-flick-left':
+                    this.scrollLeft(intensity);
+                    break;
+                case 'finger-flick-right':
+                    this.scrollRight(intensity);
+                    break;
             }
         }
 
@@ -98,16 +104,44 @@ class NavigationController {
         this.updateStatus();
     }
 
+    scrollLeft(intensity = 1) {
+        window.scrollBy({
+            left: -this.scrollAmount * intensity,
+            behavior: 'smooth'
+        });
+        this.lastAction = `Scrolled Left (${intensity.toFixed(1)}x)`;
+        this.showFeedback('← Scrolling Left');
+        this.updateStatus();
+    }
+
+    scrollRight(intensity = 1) {
+        window.scrollBy({
+            left: this.scrollAmount * intensity,
+            behavior: 'smooth'
+        });
+        this.lastAction = `Scrolled Right (${intensity.toFixed(1)}x)`;
+        this.showFeedback('→ Scrolling Right');
+        this.updateStatus();
+    }
+
     startContinuousScroll(gesture) {
         if (this.activeContinuousGesture === gesture) return;
 
         this.stopContinuousScroll();
         this.activeContinuousGesture = gesture;
 
-        const scrollStep = gesture.includes('down') ? 10 : -10;
+        const isVertical = gesture.includes('up') || gesture.includes('down');
+        const scrollStep = (gesture.includes('down') || gesture.includes('right')) ? 10 : -10;
+
         this.scrollInterval = setInterval(() => {
-            window.scrollBy(0, scrollStep);
-            this.lastAction = `Continuous ${gesture.includes('down') ? 'Down' : 'Up'}`;
+            if (isVertical) {
+                window.scrollBy(0, scrollStep);
+            } else {
+                window.scrollBy(scrollStep, 0);
+            }
+
+            const directionName = this.formatGestureName(gesture.replace('tilt-', ''));
+            this.lastAction = `Continuous ${directionName}`;
             this.updateStatus();
         }, 16); // ~60fps
     }
@@ -143,19 +177,6 @@ class NavigationController {
             target.scrollIntoView({ behavior: 'smooth' });
             this.lastAction = 'Section Up';
             this.showFeedback('⏮ Section Up');
-        }
-        this.updateStatus();
-    }
-
-    navigateNext() {
-        const sections = Array.from(document.querySelectorAll('section'));
-        const currentScroll = window.scrollY;
-        const target = sections.find(s => s.offsetTop > currentScroll + 10);
-
-        if (target) {
-            target.scrollIntoView({ behavior: 'smooth' });
-            this.lastAction = 'Section Down';
-            this.showFeedback('⏭ Section Down');
         }
         this.updateStatus();
     }
