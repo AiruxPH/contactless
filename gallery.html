@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AntiGravity Gallery - Contactless Navigation</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        /* Gallery-specific overrides */
+        body {
+            overflow: hidden;
+            background: #0a0a0c;
+        }
+
+        #main-content {
+            margin: 0;
+            padding: 0;
+            max-width: none;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .gallery-header {
+            padding: 40px 20px 20px;
+            text-align: center;
+            background: linear-gradient(180deg, #0a0a0c 0%, transparent 100%);
+        }
+
+        .gallery-header h1 {
+            color: #fff;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .gallery-header p {
+            color: #888;
+            font-size: 1.1em;
+            margin: 10px 0;
+        }
+
+        .gallery-header a {
+            color: #4facfe;
+            text-decoration: none;
+            font-weight: bold;
+            transition: color 0.3s;
+        }
+
+        .gallery-header a:hover {
+            color: #88d3ce;
+        }
+
+        .antigravity-gallery {
+            flex: 1;
+            margin: 0;
+            padding: 0 !important;
+            display: flex;
+            align-items: center;
+        }
+
+        .gallery-stage {
+            height: 100%;
+            display: flex;
+            align-items: center;
+        }
+
+        .weightless-plane {
+            height: 100%;
+            align-items: center;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Camera Feed Container -->
+    <div id="camera-container">
+        <video id="webcam" autoplay playsinline muted></video>
+        <canvas id="output"></canvas>
+    </div>
+
+    <!-- Status Panel -->
+    <div id="status-panel">
+        <h3>Gesture Status</h3>
+        <button id="switch-camera-btn"
+            style="width: 100%; margin-bottom: 15px; padding: 10px; cursor: pointer; background: #333; color: white; border: none; border-radius: 4px;">Switch
+            Camera</button>
+        <div class="status-item">
+            <label>Hand Detection:</label>
+            <span id="hand-status">Initializing...</span>
+        </div>
+        <div class="status-item">
+            <label>Current Gesture:</label>
+            <span id="gesture-status">None</span>
+        </div>
+        <div class="status-item">
+            <label>Current Camera:</label>
+            <span id="camera-name">None</span>
+        </div>
+        <div class="status-item">
+            <label>Detected Devices:</label>
+            <div id="device-list" style="font-size: 0.8em; color: #666; margin-top: 5px;">Scanning...</div>
+        </div>
+        <div class="status-item">
+            <label>Last Action:</label>
+            <span id="action-status">None</span>
+        </div>
+    </div>
+
+    <!-- Action Feedback -->
+    <div id="action-feedback"></div>
+
+    <!-- Main Content -->
+    <div id="main-content">
+        <div class="gallery-header">
+            <h1>Horizontal AntiGravity Gallery</h1>
+            <p>A weightless, frictionless space. Use <strong>Horizontal Flicks</strong> to drift through the ether.</p>
+            <p><a href="index.html">← Back to Main Page</a></p>
+        </div>
+
+        <!-- Horizontal AntiGravity Gallery -->
+        <section class="antigravity-gallery">
+            <div class="gallery-stage">
+                <div class="weightless-plane">
+                    <div class="floating-card gradient-1">
+                        <div class="card-content">
+                            <h3>Lumina</h3>
+                            <p>Drifting through neon frequencies.</p>
+                        </div>
+                    </div>
+                    <div class="floating-card gradient-2">
+                        <div class="card-content">
+                            <h3>Aether</h3>
+                            <p>Untethered from standard physics.</p>
+                        </div>
+                    </div>
+                    <div class="floating-card gradient-3">
+                        <div class="card-content">
+                            <h3>Nebula</h3>
+                            <p>Frictionless interaction design.</p>
+                        </div>
+                    </div>
+                    <div class="floating-card gradient-1">
+                        <div class="card-content">
+                            <h3>Zenith</h3>
+                            <p>The peak of contactless control.</p>
+                        </div>
+                    </div>
+                    <div class="floating-card gradient-2">
+                        <div class="card-content">
+                            <h3>Orbit</h3>
+                            <p>Smooth momentum-based navigation.</p>
+                        </div>
+                    </div>
+                    <div class="floating-card gradient-3">
+                        <div class="card-content">
+                            <h3>Cosmos</h3>
+                            <p>Infinite horizontal exploration.</p>
+                        </div>
+                    </div>
+                    <div class="floating-card gradient-1">
+                        <div class="card-content">
+                            <h3>Void</h3>
+                            <p>The space between gestures.</p>
+                        </div>
+                    </div>
+                    <div class="floating-card gradient-2">
+                        <div class="card-content">
+                            <h3>Flux</h3>
+                            <p>Continuous motion without friction.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Initialize Application -->
+    <script type="module">
+        import GestureDetector from './js/gesture-detector.js';
+        import NavigationController from './js/navigation-controller.js';
+
+        const video = document.getElementById('webcam');
+        const canvas = document.getElementById('output');
+        const switchBtn = document.getElementById('switch-camera-btn');
+        const cameraNameSpan = document.getElementById('camera-name');
+        const deviceListDiv = document.getElementById('device-list');
+
+        let currentStream = null;
+        let videoDevices = [];
+        let currentDeviceIndex = 0;
+        let gestureDetector = null;
+        let navigationController = null;
+
+        async function getDevices() {
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                videoDevices = devices.filter(device => device.kind === 'videoinput');
+                console.log('Available video devices:', videoDevices);
+
+                // Update UI list
+                if (deviceListDiv) {
+                    deviceListDiv.innerHTML = videoDevices.map((d, i) =>
+                        `<div style="${i === currentDeviceIndex ? 'color: #4CAF50; font-weight: bold;' : ''}">${d.label || 'Camera ' + (i + 1)}</div>`
+                    ).join('') || 'No cameras found';
+                }
+
+                // Prioritize DroidCam if found and we haven't manually switched
+                const droidCamIndex = videoDevices.findIndex(d => d.label.toLowerCase().includes('droidcam'));
+                if (droidCamIndex !== -1 && currentDeviceIndex === 0) {
+                    currentDeviceIndex = droidCamIndex;
+                    console.log('DroidCam matched at index:', currentDeviceIndex);
+                }
+            } catch (err) {
+                console.error('Error enumerating devices:', err);
+                if (deviceListDiv) deviceListDiv.textContent = 'Error scanning devices';
+            }
+        }
+
+        async function startCamera(deviceId) {
+            console.log('Starting camera with deviceId:', deviceId);
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+            }
+
+            // Try with specific resolution first, then fallback
+            const constraintSets = [
+                { video: { deviceId: deviceId ? { exact: deviceId } : undefined, width: 640, height: 480 } },
+                { video: { deviceId: deviceId ? { exact: deviceId } : undefined } },
+                { video: true }
+            ];
+
+            let lastError = null;
+            for (const constraints of constraintSets) {
+                try {
+                    console.log('Trying constraints:', constraints);
+                    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                    currentStream = stream;
+                    video.srcObject = stream;
+                    await video.play();
+
+                    const track = stream.getVideoTracks()[0];
+                    if (cameraNameSpan) cameraNameSpan.textContent = track.label || 'Unknown Camera';
+
+                    if (!gestureDetector) {
+                        gestureDetector = new GestureDetector(video, canvas);
+                        navigationController = new NavigationController(gestureDetector);
+                    } else {
+                        gestureDetector.video = video;
+                    }
+
+                    const handStatus = document.getElementById('hand-status');
+                    if (handStatus) handStatus.textContent = 'Camera Ready';
+                    console.log('Camera started successfully with label:', track.label);
+                    return; // Success
+                } catch (err) {
+                    lastError = err;
+                    console.warn('Failed with constraints:', constraints, err);
+                }
+            }
+
+            console.error('All camera constraint sets failed:', lastError);
+            const handStatus = document.getElementById('hand-status');
+            if (handStatus) handStatus.textContent = 'Camera Fallback Error';
+        }
+
+        // Initialize application
+        async function initApp() {
+            try {
+                // Request permission first to get device labels
+                console.log('Requesting initial camera permission...');
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                stream.getTracks().forEach(t => t.stop());
+
+                await getDevices();
+                if (videoDevices.length > 0) {
+                    await startCamera(videoDevices[currentDeviceIndex].deviceId);
+                } else {
+                    if (deviceListDiv) deviceListDiv.textContent = 'No cameras detected';
+                    console.error('No video devices returned by enumerateDevices');
+                }
+            } catch (err) {
+                console.error('Initialization error:', err);
+                alert('Camera permission is required for this app.');
+            }
+        }
+
+        initApp();
+
+        // Switch camera logic
+        if (switchBtn) {
+            switchBtn.addEventListener('click', async () => {
+                if (videoDevices.length > 1) {
+                    currentDeviceIndex = (currentDeviceIndex + 1) % videoDevices.length;
+                    console.log('Switching to device index:', currentDeviceIndex);
+                    await startCamera(videoDevices[currentDeviceIndex].deviceId);
+                    await getDevices(); // Refresh list to update highlight
+                } else {
+                    // Try refreshing devices in case one was plugged in
+                    await getDevices();
+                    if (videoDevices.length > 1) {
+                        switchBtn.click();
+                    } else {
+                        alert('Only one camera detected.');
+                    }
+                }
+            });
+        }
+
+        // Initialize detectors after metadata is loaded
+        video.addEventListener('loadedmetadata', () => {
+            console.log('Video metadata loaded');
+        });
+    </script>
+</body>
+
+</html>

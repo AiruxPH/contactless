@@ -106,16 +106,30 @@ class NavigationController {
 
     scrollLeft(intensity = 1) {
         const gallery = document.querySelector('.gallery-stage');
+
+        // Check if we are on the standalone gallery page (body has overflow hidden)
+        const isStandaloneGallery = document.body.style.overflow === 'hidden' ||
+            window.location.pathname.endsWith('gallery.html');
+
         if (gallery) {
             gallery.scrollBy({
                 left: -this.scrollAmount * intensity,
                 behavior: 'smooth'
             });
-        } else {
-            window.scrollBy({
-                left: -this.scrollAmount * intensity,
-                behavior: 'smooth'
-            });
+        }
+
+        if (!gallery || isStandaloneGallery) {
+            // Fallback or main page scroll if needed, though usually gallery page handles its own scroll via the stage
+            // If the stage is the main scroller in gallery.html, the above block handles it.
+            // If we are on index.html and no gallery is present (removed in previous step), we might want window scroll?
+            // But index.html no longer has horizontal scroll.
+            // For now, let's keep window scroll as a fallback for other potential pages.
+            if (!gallery) {
+                window.scrollBy({
+                    left: -this.scrollAmount * intensity,
+                    behavior: 'smooth'
+                });
+            }
         }
         this.lastAction = `Scrolled Left (${intensity.toFixed(1)}x)`;
         this.showFeedback('← Scrolling Left');
@@ -124,6 +138,7 @@ class NavigationController {
 
     scrollRight(intensity = 1) {
         const gallery = document.querySelector('.gallery-stage');
+
         if (gallery) {
             gallery.scrollBy({
                 left: this.scrollAmount * intensity,
