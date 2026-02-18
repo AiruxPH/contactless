@@ -257,6 +257,15 @@ class GestureDetector {
         const rawPinchDistance = this.getNormalizedDistance(landmarks[4], landmarks[8], scale);
         const isOpen = this.isHandOpen(landmarks);
 
+        // Calculate absolute palm angle for continuous tilt speed
+        const palmDX = middleFingerBase.x - wrist.x;
+        const palmDY = middleFingerBase.y - wrist.y;
+        const currentAngle = Math.atan2(palmDY, palmDX);
+        const neutralAngle = -Math.PI / 2;
+        let angleDiff = currentAngle - neutralAngle;
+        while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+        while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+
         // 2. Emit Frame Data Immediately (Continuous Tracking)
         this.emitHandFrame({
             landmarks,
@@ -266,10 +275,12 @@ class GestureDetector {
                 y: this.currentPalmCenter.y * window.innerHeight
             } : null,
             pinchDistance: rawPinchDistance,
+            tiltAngle: angleDiff,
             handScale: scale,
             isPinching: this.isPinching,
             handOpen: isOpen
         });
+
 
         // 3. Gesture Detection Guard: Cooldown
         if (now - this.lastGestureTime < this.gestureCooldown) {
@@ -291,28 +302,23 @@ class GestureDetector {
 
         let gesture = null;
 
-        // ROTATION DETECTION: Track palm angle changes
-        // Calculate current palm angle
-        const palmDeltaX = middleFingerBase.x - wrist.x;
-        const palmDeltaY = middleFingerBase.y - wrist.y;
+        // ABSOLUTE TILT DETECTION: Track palm angle relative to vertical (already calculated above)
 
-        const currentPalmAngle = { x: palmDeltaX, y: palmDeltaY };
 
-        if (this.lastPalmAngle) {
-            const angleChangeX = currentPalmAngle.x - this.lastPalmAngle.x;
-            const angleChangeY = currentPalmAngle.y - this.lastPalmAngle.y;
-            const rotationChangeThreshold = 0.15;
+        const tiltThreshold = 0.25; // ~15 degrees
 
-            if (Math.abs(angleChangeY) > Math.abs(angleChangeX) && Math.abs(angleChangeY) > rotationChangeThreshold) {
-                if (angleChangeY < -rotationChangeThreshold) gesture = 'tilt-up';
-                else if (angleChangeY > rotationChangeThreshold) gesture = 'tilt-down';
+        if (Math.abs(angleDiff) > tiltThreshold) {
+            // Note: Positive angleDiff usually means tilting Right in mirrored camera view
+            // if palmDX is positive and palmDY is negative (-PI/4).
+            // Let's keep it simple: Map to directions that match NavigationController logic
+            if (Math.abs(angleDiff) > 1.25) {
+                gesture = angleDiff > 0 ? 'tilt-down' : 'tilt-up';
+            } else {
+                gesture = angleDiff > 0 ? 'tilt-left' : 'tilt-right';
             }
-            else if (Math.abs(angleChangeX) > rotationChangeThreshold) {
-                if (angleChangeX < -rotationChangeThreshold) gesture = 'tilt-right';
-                else if (angleChangeX > rotationChangeThreshold) gesture = 'tilt-left';
-            }
+            data = { angle: angleDiff };
         }
-        this.lastPalmAngle = currentPalmAngle;
+
 
         // FINGER FLICK DETECTION
         const middleTip = landmarks[12];

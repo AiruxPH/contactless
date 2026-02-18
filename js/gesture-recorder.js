@@ -10,9 +10,7 @@ export default class GestureRecorder {
             { id: 'scroll_up', label: 'Scroll Up', defaultGesture: 'swipe-up' },
             { id: 'scroll_down', label: 'Scroll Down', defaultGesture: 'swipe-down' },
             { id: 'scroll_left', label: 'Scroll Left (Prev)', defaultGesture: 'swipe-right' }, // Logic: Swipe Right moves content Left (Back) usually, but name is confusing. Sticking to navigation connection.
-            { id: 'scroll_right', label: 'Scroll Right (Next)', defaultGesture: 'swipe-left' },
-            { id: 'zoom_in', label: 'Zoom In', defaultGesture: 'tilt-up' }, // Example default
-            { id: 'zoom_out', label: 'Zoom Out', defaultGesture: 'tilt-down' }
+            { id: 'scroll_right', label: 'Scroll Right (Next)', defaultGesture: 'swipe-left' }
         ];
 
         this.init();

@@ -24,6 +24,7 @@ class NavigationController {
         // Continuous scrolling state
         this.scrollInterval = null;
         this.activeContinuousGesture = null;
+        this.currentContinuousIntensity = 1;
 
         this.init();
     }
@@ -71,6 +72,17 @@ class NavigationController {
             this.mappings = this.loadMappings();
         });
 
+        // Listen for continuous frame data to update tilt intensity
+        window.addEventListener('handFrame', (e) => {
+            if (this.activeContinuousGesture && this.activeContinuousGesture.includes('tilt')) {
+                const { tiltAngle } = e.detail;
+                if (tiltAngle !== undefined) {
+                    // Update intensity dynamically
+                    this.currentContinuousIntensity = Math.abs(tiltAngle) / 0.3;
+                }
+            }
+        });
+
         this.updateStatus();
     }
 
@@ -91,14 +103,9 @@ class NavigationController {
         // Handle continuous gesture lifecycle
         if (gesture.includes('tilt')) {
             // Special handling for tilts as they are continuous
-            // We map the *direction* to the action
-            // If the gesture is mapped to 'zoom_in', we treat it as such
-            if (action === 'zoom_in' || action === 'zoom_out') {
-                // TODO: Implement Zoom
-                this.handleZoom(action);
-            } else {
-                this.startContinuousScroll(gesture);
-            }
+            // Extract angle data if available for variable speed
+            const tiltIntensity = data && data.angle ? Math.abs(data.angle) / 0.3 : 1;
+            this.startContinuousScroll(gesture, tiltIntensity);
         } else if (gesture === 'pinch-start') {
             this.handleClick();
         } else if (gesture === 'pinch-end') {
@@ -107,20 +114,18 @@ class NavigationController {
             // Impulse gestures (swipes, flicks)
             this.stopContinuousScroll();
 
-            // Calculate intensity for flicks
+            // Calculate intensity for flicks (Proportional Scrolling)
+            // User Spec: Velocity based intensity
             let intensity = 1;
             if (data && data.velocity) {
-                // Map velocity to intensity (e.g., 1.5 to 5.0 velocity -> 1.0 to 3.0 intensity)
-                intensity = Math.min(Math.max(data.velocity / 1.5, 1), 4);
+                // Map velocity to intensity (e.g., 1.5 to 8.0 velocity -> 1.0 to 5.0 intensity)
+                intensity = Math.min(Math.max(data.velocity / 1.5, 1), 6);
             }
 
             // Execute Action
             if (action) {
                 this.executeAction(action, intensity);
             } else {
-                // Fallback to legacy hardcoded switch if no mapping found (compatibility)
-                // Or we can just rely on defaultMappings covering everything.
-                // For now, let's trust getActionForGesture covers defaults.
                 console.log('No action mapped for:', gesture);
             }
         }
@@ -210,41 +215,36 @@ class NavigationController {
         const gallery = document.querySelector('.gallery-stage');
 
         // "Page Turn" Physics: Simulating a larger, smoother movement
-        // Increase base scroll amount for a "page" feel
-        const pageTurnAmount = window.innerWidth * 0.8;
+        const pageTurnAmount = window.innerWidth * 0.85;
         const isStandaloneGallery = document.body.style.overflow === 'hidden' ||
             window.location.pathname.endsWith('gallery.html');
 
-        const scrollAmount = isStandaloneGallery ? pageTurnAmount : (this.scrollAmount * 2);
+        const scrollAmount = isStandaloneGallery ? pageTurnAmount : (this.scrollAmount * 2.5);
 
         if (gallery) {
             gallery.scrollBy({
                 left: -scrollAmount * intensity,
                 behavior: 'smooth'
             });
+        } else {
+            window.scrollBy({
+                left: -scrollAmount * intensity,
+                behavior: 'smooth'
+            });
         }
-
-        if (!gallery || isStandaloneGallery) {
-            if (!gallery) {
-                window.scrollBy({
-                    left: -scrollAmount * intensity,
-                    behavior: 'smooth'
-                });
-            }
-        }
-        this.lastAction = `Page Previous`;
-        this.showFeedback('← Page Turn');
+        this.lastAction = `Page Back (${intensity.toFixed(1)}x)`;
+        this.showFeedback('⏮ Page Back');
         this.updateStatus();
     }
 
     scrollRight(intensity = 1) {
         const gallery = document.querySelector('.gallery-stage');
 
-        const pageTurnAmount = window.innerWidth * 0.8;
+        const pageTurnAmount = window.innerWidth * 0.85;
         const isStandaloneGallery = document.body.style.overflow === 'hidden' ||
             window.location.pathname.endsWith('gallery.html');
 
-        const scrollAmount = isStandaloneGallery ? pageTurnAmount : (this.scrollAmount * 2);
+        const scrollAmount = isStandaloneGallery ? pageTurnAmount : (this.scrollAmount * 2.5);
 
         if (gallery) {
             gallery.scrollBy({
@@ -257,21 +257,29 @@ class NavigationController {
                 behavior: 'smooth'
             });
         }
-        this.lastAction = `Page Next`;
-        this.showFeedback('Page Turn →');
+        this.lastAction = `Page Next (${intensity.toFixed(1)}x)`;
+        this.showFeedback('Page Next ⏭');
         this.updateStatus();
     }
 
-    startContinuousScroll(gesture) {
-        if (this.activeContinuousGesture === gesture) return;
+    startContinuousScroll(gesture, intensity = 1) {
+        if (this.activeContinuousGesture === gesture) {
+            // Update intensity if already running
+            this.currentContinuousIntensity = intensity;
+            return;
+        }
 
         this.stopContinuousScroll();
         this.activeContinuousGesture = gesture;
+        this.currentContinuousIntensity = intensity;
 
         const isVertical = gesture.includes('up') || gesture.includes('down');
-        const scrollStep = (gesture.includes('down') || gesture.includes('right')) ? 10 : -10;
+        const direction = (gesture.includes('down') || gesture.includes('right')) ? 1 : -1;
 
         this.scrollInterval = setInterval(() => {
+            // Base speed * intensity (variable based on tilt angle)
+            const scrollStep = 12 * this.currentContinuousIntensity * direction;
+
             if (isVertical) {
                 window.scrollBy(0, scrollStep);
             } else {
@@ -279,7 +287,8 @@ class NavigationController {
             }
 
             const directionName = this.formatGestureName(gesture.replace('tilt-', ''));
-            this.lastAction = `Continuous ${directionName}`;
+            const speedPct = Math.round(this.currentContinuousIntensity * 100);
+            this.lastAction = `Continuous ${directionName} (${speedPct}%)`;
             this.updateStatus();
         }, 16); // ~60fps
     }
