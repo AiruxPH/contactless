@@ -19,8 +19,9 @@ export default class AnalyticsController {
 
     init() {
         window.addEventListener('handFrame', (e) => this.handleFrame(e.detail));
-        window.addEventListener('gestureDetected', (e) => this.handleGesture(e.detail));
+        window.addEventListener('handGesture', (e) => this.handleGesture(e.detail));
     }
+
 
     handleFrame(data) {
         if (!data || !data.landmarks) return;

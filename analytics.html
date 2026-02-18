@@ -263,8 +263,6 @@
     </div>
 
     <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/vision_bundle.js"
-        crossorigin="anonymous"></script>
     <script type="module">
         import CameraManager from './js/camera-manager.js';
         import GestureDetector from './js/gesture-detector.js';
@@ -275,7 +273,7 @@
             const canvas = document.getElementById('tracking-canvas');
 
             const cameraManager = new CameraManager(video);
-            const gestureDetector = new GestureDetector(canvas);
+            const gestureDetector = new GestureDetector(video, canvas);
 
             // Enable landmark indices by default for this page
             gestureDetector.showLandmarkIndices = true;
@@ -283,26 +281,26 @@
             const controller = new AnalyticsController(gestureDetector);
 
             try {
-                await cameraManager.start();
+                // Correct Camera Initialization
+                const devices = await cameraManager.getDevices();
+                if (devices.length > 0) {
+                    await cameraManager.startCamera(devices[0].deviceId);
+                } else {
+                    console.error('No cameras found');
+                }
+
 
                 // Set canvas size to match video
                 video.addEventListener('loadedmetadata', () => {
                     canvas.width = video.videoWidth;
                     canvas.height = video.videoHeight;
-                    gestureDetector.setCanvasSize(canvas.width, canvas.height);
+                    // GestureDetector handles its own updates
                 });
-
-                function detect() {
-                    if (cameraManager.stream) {
-                        gestureDetector.detect(video);
-                    }
-                    requestAnimationFrame(detect);
-                }
-                detect();
 
             } catch (err) {
                 console.error('Initialization failed:', err);
             }
+
 
             // UI Controls
             document.getElementById('toggle-indices').addEventListener('click', (e) => {
