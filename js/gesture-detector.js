@@ -453,7 +453,17 @@ class GestureDetector {
             return;
         }
 
-        // 5. Facing Direction Guard
+        // 5. Stability Metrics (Used for both Flings and Clicks)
+        let palmSpeed = 0;
+        if (this.lastHandPosition) {
+            const palmDeltaX = currentPosition.x - this.lastHandPosition.x;
+            const palmDeltaY = currentPosition.y - this.lastHandPosition.y;
+            const palmDeltaTime = (now - this.lastHandPosition.time) / 1000;
+            const magnitude = Math.sqrt(palmDeltaX * palmDeltaX + palmDeltaY * palmDeltaY);
+            palmSpeed = magnitude / Math.max(palmDeltaTime, 0.001);
+        }
+
+        // 6. Face Direction Guard
         // User Spec: Prevent navigation gestures when the hand is not facing the camera.
         if (typeof isFacingCamera !== 'undefined' && !isFacingCamera) {
             this.lastHandPosition = currentPosition;
@@ -462,7 +472,6 @@ class GestureDetector {
         }
 
         let gesture = null;
-
         let data = null;
 
         // TILT DETECTION (Variable Scroll)
@@ -470,11 +479,9 @@ class GestureDetector {
         const tiltThreshold = 20; // Degrees
         if (Math.abs(pitchDegrees) > tiltThreshold || Math.abs(yawDegrees) > tiltThreshold) {
             if (Math.abs(pitchDegrees) > Math.abs(yawDegrees)) {
-                // Vertical priority
                 gesture = pitchDegrees > 0 ? 'tilt-down' : 'tilt-up';
                 data = { angle: pitchDegrees };
             } else {
-                // Horizontal priority
                 gesture = yawDegrees > 0 ? 'tilt-left' : 'tilt-right';
                 data = { angle: yawDegrees };
             }
@@ -493,18 +500,7 @@ class GestureDetector {
             const deltaTime = (now - this.lastFingerPositions.time) / 1000;
 
             // FLICK SHIELD: Only allow flicks if the palm is stationary
-            // This prevents accidental "swipe-flick" collisions
-            const palmStabilityThreshold = 0.12; // Tightened from 0.15
-
-            // Calculate current palm speed for the shield
-            let palmSpeed = 0;
-            if (this.lastHandPosition) {
-                const palmDeltaX = currentPosition.x - this.lastHandPosition.x;
-                const palmDeltaY = currentPosition.y - this.lastHandPosition.y;
-                const palmDeltaTime = (now - this.lastHandPosition.time) / 1000;
-                const magnitude = Math.sqrt(palmDeltaX * palmDeltaX + palmDeltaY * palmDeltaY);
-                palmSpeed = magnitude / Math.max(palmDeltaTime, 0.001);
-            }
+            const palmStabilityThreshold = 0.12;
 
             // MULTI-FRAME STABILITY CHECK
             const isHistoricallyStable = this.handStateHistory.length >= this.maxHistory &&
@@ -529,7 +525,6 @@ class GestureDetector {
         }
 
         if (gesture) {
-            // Calculate velocity for flicks if not already set
             if (!data && gesture.startsWith('finger-flick') && this.lastFingerPositions) {
                 const deltaTime = (now - this.lastFingerPositions.time) / 1000;
                 const velocity = gesture.includes('left') || gesture.includes('right')
@@ -537,12 +532,12 @@ class GestureDetector {
                     : Math.max(Math.abs((currentFingers.index.y - this.lastFingerPositions.index.y) / deltaTime), Math.abs((currentFingers.middle.y - this.lastFingerPositions.middle.y) / deltaTime));
                 data = { velocity };
             }
-            console.log(`Gesture detected: ${gesture}`, data);
             this.emitGesture(gesture, data);
             this.lastGestureTime = now;
         }
 
-        // UTILITY ACTIONS (Always processed for shielding but separated from navigation gestures)
+        // UTILITY ACTIONS
+        // 1. Pinch Detection
         const pinchThreshold = 0.4;
         if (rawPinchDistance < pinchThreshold) {
             if (!this.isPinching) {
@@ -554,20 +549,45 @@ class GestureDetector {
             this.emitGesture('pinch-end');
         }
 
+        // 2. Middle Pinch detection (Zoom Lever)
+        const middleMCP = landmarks[9];
+        const middleDistance = this.getNormalizedDistance(middleTip, middleMCP, scale);
+        const middlePinchThreshold = 0.52;
+        this.isMiddlePinch = middleDistance < middlePinchThreshold;
+
+        // 3. Pinky Click Detection
         const pinkyTip = landmarks[20];
         const pinkyMCP = landmarks[17];
         const pinkyDistance = this.getNormalizedDistance(pinkyTip, pinkyMCP, scale);
-        const pinkyClickThreshold = 0.52; // Slightly wider for ease
+        const pinkyClickThreshold = 0.52;
 
-        // Pinky Snap Guard: Compare current distance vs last frame to check for rapid snap
+        // ISOLATION RULE: Only click if Ring and (unless zooming) Middle are extended
+        const ringTip = landmarks[16];
+        const ringMCP = landmarks[13];
+        const ringDistance = this.getNormalizedDistance(ringTip, ringMCP, scale);
+
+        // Required distances for "Open" fingers
+        const isolationThreshold = 0.7;
+        const isRingOpen = ringDistance > isolationThreshold;
+        const isMiddleOpen = middleDistance > isolationThreshold;
+
+        // Stability Guard: Palm speed must be low
+        const clickStabilityThreshold = 0.2;
+
         if (this.lastPinkyDistance !== undefined) {
-            const pinkyVelocity = (this.lastPinkyDistance - pinkyDistance); // > 0 means closing
-            const snapThreshold = 0.08; // Required closing speed to count as a "tap"
+            const pinkyVelocity = (this.lastPinkyDistance - pinkyDistance);
+            const snapThreshold = 0.08;
 
             if (pinkyDistance < pinkyClickThreshold) {
                 if (!this.isPinkyTap && pinkyVelocity > snapThreshold) {
-                    this.isPinkyTap = true;
-                    this.emitGesture('pinky-click');
+                    // Check Isolation & Stability
+                    const isolationPass = isRingOpen && (this.isMiddlePinch || isMiddleOpen);
+                    const stabilityPass = palmSpeed < clickStabilityThreshold;
+
+                    if (isolationPass && stabilityPass) {
+                        this.isPinkyTap = true;
+                        this.emitGesture('pinky-click');
+                    }
                 }
             } else if (pinkyDistance > pinkyClickThreshold + 0.1) {
                 this.isPinkyTap = false;
@@ -575,14 +595,7 @@ class GestureDetector {
         }
         this.lastPinkyDistance = pinkyDistance;
 
-        // Middle Pinch detection (Zoom Lever)
-        const middleMCP = landmarks[9];
-        const middleDistance = this.getNormalizedDistance(middleTip, middleMCP, scale);
-        const middlePinchThreshold = 0.52;
-        this.isMiddlePinch = middleDistance < middlePinchThreshold;
-
         this.lastHandPosition = currentPosition;
-
         this.lastFingerPositions = currentFingers;
     }
 
