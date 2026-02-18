@@ -370,6 +370,14 @@ class GestureDetector {
         return scale > 0 ? rawDistance / scale : 10;
     }
 
+    get3DDistance(p1, p2) {
+        if (!p1 || !p2) return 10;
+        const dx = p1.x - p2.x;
+        const dy = p1.y - p2.y;
+        const dz = p1.z - p2.z;
+        return Math.sqrt(dx * dx + dy * dy + dz * dz);
+    }
+
     detectGesture(landmarks, worldLandmarks, handedness) {
         if (!landmarks || landmarks.length < 21) return;
 
@@ -531,7 +539,70 @@ class GestureDetector {
             this.lastPalmSpeed = palmSpeed;
         }
 
-        // 6. Face Direction Guard
+        // 3D Distance Logic (Orientation Invariant)
+        const wWrist = worldLandmarks ? worldLandmarks[0] : null;
+        const wMiddleMCP = worldLandmarks ? worldLandmarks[9] : null;
+        const wMiddleTip = worldLandmarks ? worldLandmarks[12] : null;
+        const wRingMCP = worldLandmarks ? worldLandmarks[13] : null;
+        const wRingTip = worldLandmarks ? worldLandmarks[16] : null;
+        const wPinkyMCP = worldLandmarks ? worldLandmarks[17] : null;
+        const wPinkyTip = worldLandmarks ? worldLandmarks[20] : null;
+
+        const wScale = wWrist && wMiddleMCP ? this.get3DDistance(wWrist, wMiddleMCP) : 1;
+        const middle3DDist = (wMiddleTip && wMiddleMCP) ? this.get3DDistance(wMiddleTip, wMiddleMCP) / wScale : 10;
+        const ring3DDist = (wRingTip && wRingMCP) ? this.get3DDistance(wRingTip, wRingMCP) / wScale : 10;
+        const pinky3DDist = (wPinkyTip && wPinkyMCP) ? this.get3DDistance(wPinkyTip, wPinkyMCP) / wScale : 10;
+
+        // UTILITY ACTIONS (Pinch, Zoom, Click)
+        // Moved ABOVE the Gimbal Guard so they work at all tracking angles
+
+        // 1. Pinch Detection
+        const pinchThreshold = 0.4;
+        if (rawPinchDistance < pinchThreshold) {
+            if (!this.isPinching) {
+                this.isPinching = true;
+                this.emitGesture('pinch-start');
+            }
+        } else if (this.isPinching) {
+            this.isPinching = false;
+            this.emitGesture('pinch-end');
+        }
+
+        // 2. Middle Pinch detection (Zoom Lever) using 3D metrics
+        const middlePinchThreshold = 0.6; // 3D Calibrated
+        const indexExtended = landmarks[8].y < landmarks[6].y;
+        this.isMiddlePinch = (middle3DDist < middlePinchThreshold) && indexExtended && !isFist;
+
+        // 3. Pinky Click Detection using 3D metrics
+        const pinkyClickThreshold = 0.6; // 3D Calibrated
+        const isolationThreshold = 0.8; // 3D Calibrated
+        const isRingOpen = ring3DDist > isolationThreshold;
+        const isMiddleOpen = middle3DDist > isolationThreshold;
+
+        // Stability Guard: Tightened to match Analytics Zero-Point
+        const clickStabilityThreshold = 0.1;
+
+        if (this.lastPinky3DDist !== undefined) {
+            const pinkyVelocity = (this.lastPinky3DDist - pinky3DDist);
+            const snapThreshold = 0.05; // Calibrated for natural response
+
+            if (pinky3DDist < pinkyClickThreshold) {
+                if (!this.isPinkyTap && pinkyVelocity > snapThreshold) {
+                    const isolationPass = (this.isMiddlePinch || isMiddleOpen);
+                    const stabilityPass = palmSpeed < clickStabilityThreshold && !isFist;
+
+                    if (isolationPass && stabilityPass) {
+                        this.isPinkyTap = true;
+                        this.emitGesture('pinky-click');
+                    }
+                }
+            } else if (pinky3DDist > pinkyClickThreshold + 0.1) {
+                this.isPinkyTap = false;
+            }
+        }
+        this.lastPinky3DDist = pinky3DDist;
+
+        // 6. Face Direction Guard (Only blocks Navigation Gestures)
         // User Spec: Prevent navigation gestures when the hand is not facing the camera.
         if (typeof isFacingCamera !== 'undefined' && !isFacingCamera) {
             this.lastHandPosition = currentPosition;
@@ -554,7 +625,6 @@ class GestureDetector {
                 data = { angle: yawDegrees };
             }
         }
-
 
         // FINGER FLICK DETECTION
         const middleTip = landmarks[12];
@@ -603,73 +673,6 @@ class GestureDetector {
             this.emitGesture(gesture, data);
             this.lastGestureTime = now;
         }
-
-        // UTILITY ACTIONS
-        // 1. Pinch Detection
-        const pinchThreshold = 0.4;
-        if (rawPinchDistance < pinchThreshold) {
-            if (!this.isPinching) {
-                this.isPinching = true;
-                this.emitGesture('pinch-start');
-            }
-        } else if (this.isPinching) {
-            this.isPinching = false;
-            this.emitGesture('pinch-end');
-        }
-
-        // 2. Middle Pinch detection (Zoom Lever)
-        // Phase 42: Isolation Guard - Only allow if index is extended and NOT in a full fist
-        const middleMCP = landmarks[9];
-        const middleDistance = this.getNormalizedDistance(middleTip, middleMCP, scale);
-        const middlePinchThreshold = 0.52;
-        const indexExtended = landmarks[8].y < landmarks[6].y;
-
-        this.isMiddlePinch = (middleDistance < middlePinchThreshold) && indexExtended && !isFist;
-
-        // 3. Pinky Click Detection
-        const pinkyTip = landmarks[20];
-        const pinkyMCP = landmarks[17];
-        const pinkyDistance = this.getNormalizedDistance(pinkyTip, pinkyMCP, scale);
-        const pinkyClickThreshold = 0.52;
-
-        // ISOLATION RULE: Only click if Ring and (unless zooming) Middle are extended
-        const ringTip = landmarks[16];
-        const ringMCP = landmarks[13];
-
-        if (!ringTip || !ringMCP) return; // Isolation Guard
-
-        const ringDistance = this.getNormalizedDistance(ringTip, ringMCP, scale);
-
-        // Required distances for "Open" fingers
-        const isolationThreshold = 0.7;
-        const isRingOpen = ringDistance > isolationThreshold;
-        const isMiddleOpen = middleDistance > isolationThreshold;
-
-        // Stability Guard: Tightened to match Analytics Zero-Point
-        const clickStabilityThreshold = 0.1;
-
-        if (this.lastPinkyDistance !== undefined) {
-            const pinkyVelocity = (this.lastPinkyDistance - pinkyDistance);
-            const snapThreshold = 0.08;
-
-            if (pinkyDistance < pinkyClickThreshold) {
-                if (!this.isPinkyTap && pinkyVelocity > snapThreshold) {
-                    // Check Isolation & Stability
-                    // Phase 41: ALLOW clicking during Ring-Grip (removed isRingOpen requirement)
-                    // But BLOCK if in a full fist (isFist) to prioritize the clench-pause gesture
-                    const isolationPass = (this.isMiddlePinch || isMiddleOpen);
-                    const stabilityPass = palmSpeed < clickStabilityThreshold && !isFist;
-
-                    if (isolationPass && stabilityPass) {
-                        this.isPinkyTap = true;
-                        this.emitGesture('pinky-click');
-                    }
-                }
-            } else if (pinkyDistance > pinkyClickThreshold + 0.1) {
-                this.isPinkyTap = false;
-            }
-        }
-        this.lastPinkyDistance = pinkyDistance;
 
         this.lastHandPosition = currentPosition;
         this.lastFingerPositions = currentFingers;
