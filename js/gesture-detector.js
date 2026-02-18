@@ -147,18 +147,22 @@ class GestureDetector {
         // Visual Cursor Logic (Built-in)
         // Can be disabled if an external controller (like MouseController) wants to handle smoothing/physics
         if (this.enableVisualCursor) {
-            if (this.isPaused) return; // LOCKDOWN: Do not move cursor if paused
-
             const cursor = document.getElementById('hand-cursor');
             if (cursor) {
-                // Index finger tip is landmark 8
-                const indexTip = landmarks[8];
-                // Mirror X coordinate for intuitive cursor movement
-                const screenX = (1 - indexTip.x) * window.innerWidth;
-                const screenY = indexTip.y * window.innerHeight;
+                if (this.isPaused) {
+                    // LOCKDOWN: Cursor visual feedback for pause
+                    cursor.style.filter = 'grayscale(1) opacity(0.5)';
+                } else {
+                    cursor.style.filter = 'none';
+                    // Index finger tip is landmark 8
+                    const indexTip = landmarks[8];
+                    // Mirror X coordinate for intuitive cursor movement
+                    const screenX = (1 - indexTip.x) * window.innerWidth;
+                    const screenY = indexTip.y * window.innerHeight;
 
-                cursor.style.left = `${screenX}px`;
-                cursor.style.top = `${screenY}px`;
+                    cursor.style.left = `${screenX}px`;
+                    cursor.style.top = `${screenY}px`;
+                }
                 cursor.classList.add('active');
 
                 // Add pinching class if thumb and index are close
