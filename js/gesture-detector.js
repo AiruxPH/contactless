@@ -670,6 +670,7 @@ class GestureDetector {
     }
 
     emitHandFrame(data) {
+        console.log("Emitting handFrame:", !!data.landmarks);
         window.dispatchEvent(new CustomEvent('handFrame', {
             detail: data
         }));

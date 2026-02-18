@@ -42,6 +42,7 @@ export default class AnalyticsController {
 
 
     handleFrame(data) {
+        console.log("Analytics received frame:", !!data?.landmarks);
         if (!data || !data.landmarks) return;
 
         const now = Date.now();
