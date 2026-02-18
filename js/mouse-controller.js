@@ -54,6 +54,7 @@ export default class MouseController {
     handleFrame(data) {
         this.currentPinchDistance = data.pinchDistance;
         this.currentHandOpen = data.handOpen;
+        this.isRingPinch = data.isRingPinch;
 
         // Update raw target from detector
         if (data.cursor) {
@@ -210,24 +211,31 @@ export default class MouseController {
             const pinchStrength = Math.max(0, 1 - ((this.currentPinchDistance || 1) * 2));
             const glowSize = 10 + (pinchStrength * 20);
 
-            // User Spec: Unique Green cue for Pinky Click, Cyan for Zoom
+            // User Spec: Unique Green cue for Pinky Click, Cyan for Zoom, Orange for Lever
             let glowColor;
             if (this.isDown) {
                 glowColor = 'rgba(0, 255, 0, 1)'; // Solid Green for Click
                 this.cursor.classList.add('clicking');
             } else {
                 this.cursor.classList.remove('clicking');
-                if (this.isPinchingZoom) {
+                if (this.isRingPinch) {
+                    glowColor = 'rgba(255, 165, 0, 0.8)'; // Orange for Zoom Lever
+                    this.cursor.classList.add('zoom-mode');
+                } else {
+                    this.cursor.classList.remove('zoom-mode');
+                }
+
+                if (this.isPinchingZoom && this.isRingPinch) {
                     glowColor = `rgba(0, 242, 254, ${0.4 + pinchStrength * 0.6})`; // Cyan for Zoom
                     this.cursor.classList.add('pinching');
                 } else {
-                    glowColor = 'rgba(0, 242, 254, 0.3)'; // Dim Cyan hover
+                    if (!this.isRingPinch) glowColor = 'rgba(0, 242, 254, 0.3)'; // Dim Cyan hover
                     this.cursor.classList.remove('pinching');
                 }
             }
 
             this.cursor.style.boxShadow = `0 0 ${glowSize}px ${glowColor}`;
-            this.cursor.style.backgroundColor = this.isDown ? '#00FF00' : 'transparent'; // Turn green on click
+            this.cursor.style.backgroundColor = this.isDown ? '#00FF00' : (this.isRingPinch ? 'rgba(255, 165, 0, 0.4)' : 'transparent');
 
             this.cursor.style.transform = magnetized ? 'translate(-50%, -50%) scale(1.2)' : 'translate(-50%, -50%) scale(1.0)';
         }
@@ -236,8 +244,8 @@ export default class MouseController {
         const elem = document.elementFromPoint(this.cursorX, this.cursorY);
         const isHoveringZoom = elem && elem.closest('#zoom-target');
 
-        // ZOOM LOGIC: Active if hovering OR locked (current pinch in progress)
-        if ((isHoveringZoom || this.isZoomLocked) && this.currentPinchDistance !== undefined) {
+        // ZOOM LOGIC: Active ONLY if ring-pinch (lever) is held AND (hovering OR locked)
+        if (this.isRingPinch && (isHoveringZoom || this.isZoomLocked) && this.currentPinchDistance !== undefined) {
             // 1. Widen thresholds for natural hand movement
             const minD = 0.3; // Fully pinched
             const maxD = 0.8; // Wide open

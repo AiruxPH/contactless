@@ -10,6 +10,7 @@ class GestureDetector {
         this.lastFingerPositions = null; // Track finger positions for flick detection
         this.isPinching = false; // Track pinch state
         this.isPinkyTap = false; // Track pinky tap state
+        this.isRingPinch = false;
         this.gestureCallbacks = [];
         this.isMirror = true;
         this.showLandmarkIndices = false; // New property for analytics
@@ -409,6 +410,7 @@ class GestureDetector {
             isFacingCamera: isFacingCamera,
             handedness: handedness ? handedness.categoryName : 'N/A',
             handScale: scale,
+            isRingPinch: this.isRingPinch,
 
 
             isPinching: this.isPinching,
@@ -568,8 +570,15 @@ class GestureDetector {
         }
         this.lastPinkyDistance = pinkyDistance;
 
+        // Ring Pinch detection (Zoom Lever)
+        const ringTip = landmarks[16];
+        const ringMCP = landmarks[13];
+        const ringDistance = this.getNormalizedDistance(ringTip, ringMCP, scale);
+        const ringPinchThreshold = 0.52;
+        this.isRingPinch = ringDistance < ringPinchThreshold;
 
         this.lastHandPosition = currentPosition;
+
         this.lastFingerPositions = currentFingers;
     }
 

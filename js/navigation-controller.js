@@ -5,6 +5,7 @@ class NavigationController {
         this.currentGesture = 'None';
         this.lastAction = 'None';
         this.handDetected = false;
+        this.isRingPinch = false;
 
         // Mappings
         this.mappings = this.loadMappings();
@@ -82,6 +83,9 @@ class NavigationController {
 
         // Listen for continuous frame data to update tilt intensity
         window.addEventListener('handFrame', (e) => {
+            const { isRingPinch } = e.detail;
+            this.isRingPinch = isRingPinch;
+
             if (this.activeContinuousGesture && this.activeContinuousGesture.includes('tilt')) {
                 const { pitch, yaw } = e.detail;
 
