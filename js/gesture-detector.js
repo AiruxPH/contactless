@@ -571,7 +571,6 @@ class GestureDetector {
         this.lastPinkyDistance = pinkyDistance;
 
         // Middle Pinch detection (Zoom Lever)
-        middleTip = landmarks[12];
         const middleMCP = landmarks[9];
         const middleDistance = this.getNormalizedDistance(middleTip, middleMCP, scale);
         const middlePinchThreshold = 0.52;
