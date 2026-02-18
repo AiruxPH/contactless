@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hand Tracking Analytics | Contactless</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        body {
+            background: #0f172a;
+            color: #f8fafc;
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #analytics-container {
+            display: flex;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Left: Video Feed */
+        .video-pane {
+            flex: 1;
+            position: relative;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-right: 1px solid #334155;
+        }
+
+        #camera-feed,
+        #tracking-canvas {
+            position: absolute;
+            max-width: 100%;
+            max-height: 100%;
+            border-radius: 8px;
+        }
+
+        /* Right: Data Pane */
+        .data-pane {
+            width: 450px;
+            background: #1e293b;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+            border-left: 1px solid #334155;
+        }
+
+        .card {
+            background: #0f172a;
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid #334155;
+        }
+
+        .card h3 {
+            margin-top: 0;
+            font-size: 0.9em;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .stat {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .stat-label {
+            font-size: 0.8em;
+            color: #64748b;
+        }
+
+        .stat-value {
+            font-size: 1.2em;
+            font-family: monospace;
+            color: #38bdf8;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8em;
+            font-family: monospace;
+        }
+
+        th {
+            border-bottom: 1px solid #334155;
+            text-align: left;
+            padding: 5px;
+            color: #64748b;
+        }
+
+        td {
+            padding: 4px 5px;
+            color: #cbd5e1;
+        }
+
+        .highlight {
+            color: #4ade80;
+        }
+
+        .gesture-log {
+            height: 150px;
+            overflow-y: auto;
+            font-size: 0.85em;
+            font-family: monospace;
+            background: #020617;
+            padding: 10px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column-reverse;
+        }
+
+        .log-entry {
+            margin-bottom: 4px;
+            border-bottom: 1px solid #1e293b;
+            padding-bottom: 2px;
+        }
+
+        .log-time {
+            color: #475569;
+            margin-right: 8px;
+        }
+
+        .log-name {
+            color: #f472b6;
+            font-weight: bold;
+        }
+
+        .log-data {
+            color: #94a3b8;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        button {
+            background: #334155;
+            color: #fff;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #475569;
+        }
+
+        button.active {
+            background: #38bdf8;
+            color: #0f172a;
+            font-weight: bold;
+        }
+
+        .badge {
+            background: #1e293b;
+            color: #4ade80;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.8em;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="analytics-container">
+        <!-- Video Pane -->
+        <div class="video-pane">
+            <video id="camera-feed" autoplay playsinline muted></video>
+            <canvas id="tracking-canvas"></canvas>
+
+            <div style="position: absolute; bottom: 20px; left: 20px; display: flex; gap: 10px;">
+                <button id="toggle-indices" class="active">Show Landmarks IDs</button>
+                <button id="toggle-mirror">Mirror Camera</button>
+            </div>
+        </div>
+
+        <!-- Data Pane -->
+        <div class="data-pane">
+            <header>
+                <h1 style="margin:0; font-size: 1.5em; color: #38bdf8;">Data Station</h1>
+                <p style="margin:5px 0 0; color: #64748b; font-size: 0.9em;">Real-time hand physics engine</p>
+            </header>
+
+            <!-- Key Metrics -->
+            <div class="card">
+                <h3>Global Physics</h3>
+                <div class="data-grid">
+                    <div class="stat">
+                        <span class="stat-label">Hand Speed</span>
+                        <span id="stat-speed" class="stat-value">0.0 px/s</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Palm Tilt</span>
+                        <span id="stat-tilt" class="stat-value">0.0°</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Pinch Dist</span>
+                        <span id="stat-pinch" class="stat-value">0.00</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Hand Scale</span>
+                        <span id="stat-scale" class="stat-value">0.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gesture Log -->
+            <div class="card">
+                <h3>Gesture Event Stream</h3>
+                <div id="gesture-log" class="gesture-log">
+                    <div class="log-entry">Waiting for input...</div>
+                </div>
+            </div>
+
+            <!-- Landmark Coordinates -->
+            <div class="card" style="flex:1;">
+                <h3>Landmark Coordinates (0-20)</h3>
+                <div style="max-height: 300px; overflow-y: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>X (Px)</th>
+                                <th>Y (Px)</th>
+                                <th>Z (Depth)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="landmark-table">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <button onclick="window.location.href='index.html'"
+                style="background: transparent; border: 1px solid #334155;">← Return to Main Page</button>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/vision_bundle.js"
+        crossorigin="anonymous"></script>
+    <script type="module">
+        import CameraManager from './js/camera-manager.js';
+        import GestureDetector from './js/gesture-detector.js';
+        import AnalyticsController from './js/analytics-controller.js';
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const video = document.getElementById('camera-feed');
+            const canvas = document.getElementById('tracking-canvas');
+
+            const cameraManager = new CameraManager(video);
+            const gestureDetector = new GestureDetector(canvas);
+
+            // Enable landmark indices by default for this page
+            gestureDetector.showLandmarkIndices = true;
+
+            const controller = new AnalyticsController(gestureDetector);
+
+            try {
+                await cameraManager.start();
+
+                // Set canvas size to match video
+                video.addEventListener('loadedmetadata', () => {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    gestureDetector.setCanvasSize(canvas.width, canvas.height);
+                });
+
+                function detect() {
+                    if (cameraManager.stream) {
+                        gestureDetector.detect(video);
+                    }
+                    requestAnimationFrame(detect);
+                }
+                detect();
+
+            } catch (err) {
+                console.error('Initialization failed:', err);
+            }
+
+            // UI Controls
+            document.getElementById('toggle-indices').addEventListener('click', (e) => {
+                gestureDetector.showLandmarkIndices = !gestureDetector.showLandmarkIndices;
+                e.target.classList.toggle('active');
+            });
+
+            document.getElementById('toggle-mirror').addEventListener('click', (e) => {
+                gestureDetector.isMirror = !gestureDetector.isMirror;
+                e.target.classList.toggle('active');
+            });
+        });
+    </script>
+</body>
+
+</html>

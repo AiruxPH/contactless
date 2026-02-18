@@ -11,8 +11,9 @@ class GestureDetector {
         this.isPinching = false; // Track pinch state
         this.isPinkyTap = false; // Track pinky tap state
         this.gestureCallbacks = [];
-        this.lastGestureTime = 0;
-        this.gestureCooldown = 600; // ms between gestures (reduced for better responsiveness)
+        this.isMirror = true;
+        this.showLandmarkIndices = false; // New property for analytics
+        this.gestureCooldown = 400; // ms between gestures (reduced for better responsiveness)
         this.enableVisualCursor = true; // Default to true, can be disabled by controllers
 
         this.init();
@@ -160,17 +161,22 @@ class GestureDetector {
 
         // Draw landmarks
         ctx.fillStyle = '#FF0000';
-        landmarks.forEach(landmark => {
+        landmarks.forEach((landmark, index) => {
+            const x = landmark.x * this.canvas.width;
+            const y = landmark.y * this.canvas.height;
+
             ctx.beginPath();
-            ctx.arc(
-                landmark.x * this.canvas.width,
-                landmark.y * this.canvas.height,
-                3, // Smaller for standard landmarks
-                0,
-                2 * Math.PI
-            );
+            ctx.arc(x, y, 3, 0, 2 * Math.PI);
             ctx.fill();
+
+            if (this.showLandmarkIndices) {
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = '10px Arial';
+                ctx.fillText(index, x + 5, y + 5);
+                ctx.fillStyle = '#FF0000'; // Reset for next dot
+            }
         });
+
 
         // Draw Green Lines connecting finger tips
         // Tips: Thumb(4), Index(8), Middle(12), Ring(16), Pinky(20)
