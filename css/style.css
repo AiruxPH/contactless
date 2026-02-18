@@ -272,17 +272,17 @@ html {
 .weightless-plane {
     display: flex;
     width: 250vw;
-    /* Increased for more cards/space */
+    /* Sufficient room for wider cards */
     padding: 0 10vw;
     /* More horizontal breathing room */
-    gap: 80px;
-    /* Doubled spacing between cards */
+    gap: 70px;
+    /* Significant gap without being excessive */
     align-items: center;
 }
 
 .floating-card {
-    min-width: 350px;
-    height: 480px;
+    min-width: 380px;
+    height: 400px;
     border-radius: 20px;
     padding: 30px;
     display: flex;
