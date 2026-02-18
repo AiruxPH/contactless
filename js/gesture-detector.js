@@ -198,6 +198,18 @@ class GestureDetector {
         return Math.sqrt(dx * dx + dy * dy);
     }
 
+    getHandScale(landmarks) {
+        // Distance from Wrist (0) to Middle Finger MCP (9)
+        // This represents the "palm size" which stays consistent regardless of finger movement
+        return this.getDistance(landmarks[0], landmarks[9]);
+    }
+
+    getNormalizedDistance(point1, point2, scale) {
+        const rawDistance = this.getDistance(point1, point2);
+        // Returning distance relative to the hand size
+        return scale > 0 ? rawDistance / scale : 10;
+    }
+
     detectGesture(landmarks) {
         const now = Date.now();
         if (now - this.lastGestureTime < this.gestureCooldown) {
@@ -372,18 +384,12 @@ class GestureDetector {
         this.lastFingerPositions = currentFingers;
 
         // PINCH DETECTION: Check if thumb (4) and index (8) are close
-        const thumbTip = landmarks[4];
-        const indexTipMark = landmarks[8];
-        const rawPinchDistance = this.getDistance(thumbTip, indexTipMark);
+        // Use user-specified normalization logic
+        const scale = this.getHandScale(landmarks);
+        const normalizedPinchDistance = this.getNormalizedDistance(landmarks[4], landmarks[8], scale);
 
-        // Adaptive Scaling: Hand Scale based on Wrist (0) to Middle Finger Base (9)
-        const handScale = this.getDistance(landmarks[0], landmarks[9]);
-
-        // Normalized Pinch Distance (0.0 to ~1.5+, where < 0.2 is usually a pinch)
-        // Prevent division by zero
-        const normalizedPinchDistance = handScale > 0 ? rawPinchDistance / handScale : 10;
-
-        const pinchThreshold = 0.35; // Normalized threshold (was raw 0.05 or dynamic 0.4)
+        // User spec: 0.4 means "the gap is 40% of the palm's length"
+        const pinchThreshold = 0.4;
 
         if (normalizedPinchDistance < pinchThreshold) {
             if (!this.isPinching) {

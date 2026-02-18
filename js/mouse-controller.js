@@ -14,9 +14,7 @@ export default class MouseController {
 
         // Physics
         this.smoothingFactor = 0.2; // 0.2 = heavy smoothing
-        this.clickLockTime = 0;
-        this.lockDuration = 150; // ms
-        this.lockedCoords = null;
+        this.lockCursor = false;
 
         // Zoom state
         this.zoomElement = document.getElementById('zoom-target');
@@ -66,9 +64,11 @@ export default class MouseController {
     startInteraction() {
         this.isDown = true;
 
-        // Lock cursor
-        this.clickLockTime = Date.now();
-        this.lockedCoords = { x: this.cursorX, y: this.cursorY };
+        // Lock cursor (User Spec: Precision Click-Lock)
+        this.lockCursor = true;
+        setTimeout(() => {
+            this.lockCursor = false;
+        }, 150); // 150ms lock
 
         // Trigger generic click
         const elem = this.getElementUnderCursor();
@@ -117,15 +117,32 @@ export default class MouseController {
         this.isDragging = false;
     }
 
+    updateCursorSmoothing(targetX, targetY) {
+        const lerpFactor = 0.15; // Lower = smoother/slower, Higher = snappier/jitterier
+
+        this.cursorX = (targetX * lerpFactor) + (this.cursorX * (1 - lerpFactor));
+        this.cursorY = (targetY * lerpFactor) + (this.cursorY * (1 - lerpFactor));
+
+        // DOM update is handled in updateLoop for now to keep the loop structure clean,
+        // or we can move it here as per user snippet. 
+        // User snippet included DOM update here. Let's strictly follow it.
+        // Actually, updateLoop handles DOM update in step 4. 
+        // I will keep the math here and let updateLoop handle the centralized DOM update 
+        // to avoid conflicts with other visual effects (glow, transform) which are calculated in updateLoop.
+    }
+
     updateLoop() {
         requestAnimationFrame(() => this.updateLoop());
 
         // 1. Click Locking
-        if (this.clickLockTime > 0 && Date.now() - this.clickLockTime < this.lockDuration) {
-            if (this.lockedCoords) {
-                this.targetX = this.lockedCoords.x;
-                this.targetY = this.lockedCoords.y;
-            }
+        if (this.lockCursor) {
+            // Keep target at current cursor position (freeze)
+            // Or rather, ignore new targets? 
+            // The user said "freeze the cursorX and cursorY values".
+            // If we freeze cursorX/Y, the EMA in step 3 will pull it towards targetX/Y unless we freeze target or force cursor.
+            // Let's freeze the targetX/Y to the current cursorX/Y so the EMA stabilizes there.
+            this.targetX = this.cursorX;
+            this.targetY = this.cursorY;
         }
 
         // 2. Magnetic Targets
@@ -149,9 +166,8 @@ export default class MouseController {
             }
         }
 
-        // 3. EMA Smoothing
-        this.cursorX += (this.targetX - this.cursorX) * this.smoothingFactor;
-        this.cursorY += (this.targetY - this.cursorY) * this.smoothingFactor;
+        // 3. EMA Smoothing (User Spec: Logic moved to helper)
+        this.updateCursorSmoothing(this.targetX, this.targetY);
 
         // 4. Update Cursor DOM
         if (this.cursor) {
