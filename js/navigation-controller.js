@@ -10,10 +10,6 @@ class NavigationController {
         // Mappings
         this.mappings = this.loadMappings();
         this.defaultMappings = {
-            'swipe-up': 'scroll_up',
-            'swipe-down': 'scroll_down',
-            'swipe-left': 'scroll_right', // Logic: Swipe Left moves content Right (Next)
-            'swipe-right': 'scroll_left', // Logic: Swipe Right moves content Left (Back)
             'finger-flick-up': 'scroll_up',
             'finger-flick-down': 'scroll_down',
             'finger-flick-left': 'scroll_right',
@@ -190,21 +186,10 @@ class NavigationController {
                 this.handleClick();
                 break;
             case 'scroll_right':
-
-                // Check if we are in gallery or reading mode
-                // For now assume standard "Next" behavior
-                if (this.isGalleryMode()) {
-                    this.scrollRight(intensity);
-                } else {
-                    this.navigateNext(); // Section snap for main page
-                }
+                this.scrollRight(intensity);
                 break;
             case 'scroll_left':
-                if (this.isGalleryMode()) {
-                    this.scrollLeft(intensity);
-                } else {
-                    this.navigatePrev(); // Section snap for main page
-                }
+                this.scrollLeft(intensity);
                 break;
             case 'zoom_in':
                 this.zoomIn();
@@ -322,14 +307,18 @@ class NavigationController {
         const direction = (gesture.includes('down') || gesture.includes('right')) ? 1 : -1;
 
         this.scrollInterval = setInterval(() => {
-            // Precision Scroll Curve: (alpha/max)^1.5 for fine minor adjustments
+            // Adaptive Speed: 18 * Math.pow(intensity, 1.5) curve
             const scrollStep = 18 * Math.pow(this.currentContinuousIntensity, 1.5) * direction;
 
             if (isVertical) {
-
                 window.scrollBy(0, scrollStep);
             } else {
-                window.scrollBy(scrollStep, 0);
+                const gallery = document.querySelector('.gallery-stage');
+                if (gallery) {
+                    gallery.scrollBy({ left: scrollStep, behavior: 'auto' });
+                } else {
+                    window.scrollBy(scrollStep, 0);
+                }
             }
 
             const directionName = this.formatGestureName(gesture.replace('tilt-', ''));
@@ -368,31 +357,6 @@ class NavigationController {
     }
 
 
-    navigatePrev() {
-        const sections = Array.from(document.querySelectorAll('section'));
-        const currentScroll = window.scrollY;
-        const target = [...sections].reverse().find(s => s.offsetTop < currentScroll - 10);
-
-        if (target) {
-            target.scrollIntoView({ behavior: 'smooth' });
-            this.lastAction = 'Section Up';
-            this.showFeedback('⏮ Section Up');
-        }
-        this.updateStatus();
-    }
-
-    navigateNext() {
-        const sections = Array.from(document.querySelectorAll('section'));
-        const currentScroll = window.scrollY;
-        const target = sections.find(s => s.offsetTop > currentScroll + 10);
-
-        if (target) {
-            target.scrollIntoView({ behavior: 'smooth' });
-            this.lastAction = 'Section Down';
-            this.showFeedback('⏭ Section Down');
-        }
-        this.updateStatus();
-    }
 
     formatGestureName(gesture) {
         return gesture.split('-').map(word =>

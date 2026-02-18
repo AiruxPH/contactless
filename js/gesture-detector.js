@@ -469,30 +469,6 @@ class GestureDetector {
         }
 
 
-        // SWIPE vs FLICK LOGIC
-        let palmDeltaX = 0;
-        let palmDeltaY = 0;
-        let palmSpeed = 0;
-
-        if (this.lastHandPosition) {
-            palmDeltaX = currentPosition.x - this.lastHandPosition.x;
-            palmDeltaY = currentPosition.y - this.lastHandPosition.y;
-            const deltaTime = (now - this.lastHandPosition.time) / 1000;
-            const magnitude = Math.sqrt(palmDeltaX * palmDeltaX + palmDeltaY * palmDeltaY);
-            palmSpeed = magnitude / Math.max(deltaTime, 0.001);
-
-            const swipeThreshold = 0.04;
-            const minSwipeSpeed = 0.2;
-
-            if (!gesture && magnitude > swipeThreshold && palmSpeed > minSwipeSpeed) {
-                if (Math.abs(palmDeltaY) > Math.abs(palmDeltaX)) {
-                    gesture = palmDeltaY < -swipeThreshold ? 'swipe-up' : 'swipe-down';
-                } else {
-                    gesture = palmDeltaX < -swipeThreshold ? 'swipe-right' : 'swipe-left';
-                }
-            }
-        }
-
         // FINGER FLICK DETECTION
         const middleTip = landmarks[12];
         const currentFingers = {
@@ -503,7 +479,20 @@ class GestureDetector {
 
         if (!gesture && this.lastFingerPositions) {
             const deltaTime = (now - this.lastFingerPositions.time) / 1000;
-            const palmStabilityThreshold = 0.15; // If palm is stable, allow flick
+
+            // FLICK SHIELD: Only allow flicks if the palm is stationary
+            // This prevents accidental "swipe-flick" collisions
+            const palmStabilityThreshold = 0.15;
+
+            // Calculate current palm speed for the shield
+            let palmSpeed = 0;
+            if (this.lastHandPosition) {
+                const palmDeltaX = currentPosition.x - this.lastHandPosition.x;
+                const palmDeltaY = currentPosition.y - this.lastHandPosition.y;
+                const palmDeltaTime = (now - this.lastHandPosition.time) / 1000;
+                const magnitude = Math.sqrt(palmDeltaX * palmDeltaX + palmDeltaY * palmDeltaY);
+                palmSpeed = magnitude / Math.max(palmDeltaTime, 0.001);
+            }
 
             if (deltaTime > 0 && palmSpeed < palmStabilityThreshold) {
                 const indexVelY = (currentFingers.index.y - this.lastFingerPositions.index.y) / deltaTime;
