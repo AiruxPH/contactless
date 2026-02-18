@@ -133,9 +133,9 @@ class NavigationController {
             this.velocityX *= this.friction;
             this.velocityY *= this.friction;
 
-            // 2. NOISE GATE: Stop micro-drifting
+            // 2. NOISE GATE: Stop micro-drifting (Increased threshold for rock-solid stability)
             let speed = Math.sqrt(this.velocityX * this.velocityX + this.velocityY * this.velocityY);
-            if (speed < 0.5) {
+            if (speed < 2.0) {
                 this.velocityX = 0;
                 this.velocityY = 0;
                 speed = 0;

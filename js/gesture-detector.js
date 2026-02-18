@@ -549,8 +549,8 @@ class GestureDetector {
         if (!gesture && this.lastFingerPositions) {
             const deltaTime = (now - this.lastFingerPositions.time) / 1000;
 
-            // FLICK SHIELD: Only allow flicks if the palm is stationary
-            const palmStabilityThreshold = 0.12;
+            // FLICK SHIELD: Tightened threshold (Lower = more stable required)
+            const palmStabilityThreshold = 0.08;
 
             // MULTI-FRAME STABILITY CHECK
             const isHistoricallyStable = this.handStateHistory.length >= this.maxHistory &&
@@ -621,8 +621,8 @@ class GestureDetector {
         const isRingOpen = ringDistance > isolationThreshold;
         const isMiddleOpen = middleDistance > isolationThreshold;
 
-        // Stability Guard: Palm speed must be low
-        const clickStabilityThreshold = 0.2;
+        // Stability Guard: Tightened to match Analytics Zero-Point
+        const clickStabilityThreshold = 0.1;
 
         if (this.lastPinkyDistance !== undefined) {
             const pinkyVelocity = (this.lastPinkyDistance - pinkyDistance);
