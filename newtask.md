@@ -1,10 +1,20 @@
-# Task: Fix Persistent Handedness Error (DONE)
+# Task: Solidify Scrolling & Remove Redundant Logic
 
 ## Objective
-The system is currently misidentifying the Right hand as 'Left'. We need to stop over-correcting the Handedness label and instead trust the anatomical detection from MediaPipe.
+Reduce the 12 existing scrolling gestures to 2 highly stable modes: Continuous Gimbal Drifting and High-Velocity Finger Flicks.
 
 ## Technical Requirements
-1. **Trust the Model:** In `js/gesture-detector.js`, remove the mirror-based toggle for the `handedness` label. Set it to trust the `handedness.categoryName` directly.
-2. **Yaw Sync:** Ensure `yawDegrees` is multiplied by `-1` only when the model physically detects a 'Left' hand anatomy.
-3. **Mirror Alignment:** Ensure the `isMirror` property only affects the CSS `scaleX(-1)` and does not interfere with the anatomical logic.
-4. **Visual Check:** Update `analytics-controller.js` so that if the model says 'Right', the UI displays 'Right' regardless of which side of the screen the hand is on.
+
+### 1. Cleanup `js/navigation-controller.js`
+- **Remove Swipes:** Delete all 'swipe-up/down/left/right' logic. We will rely on Flicks for impulse movement.
+- **Refine Continuous Mode:** Focus purely on `Pitch` (Vertical) and `Yaw` (Horizontal) degrees.
+- **Adaptive Speed:** Ensure the `18 * Math.pow(intensity, 1.5)` curve is applied to all continuous movement.
+
+### 2. Cleanup `js/gesture-detector.js`
+- **Flick Shield:** Only detect `finger-flick` gestures if `palmSpeed < 0.15` (meaning the hand is stationary).
+- **Snap Guard:** Maintain the `pinkyVelocity` check to ensure the Pinky Click remains an independent utility action that doesn't trigger scrolls.
+
+### 3. UI Sync
+- Update the **Quick Guide** in `index.html` and `gallery.html` to reflect the new simplified controls: 
+  - 🖐️ **Tilt:** Continuous Drift
+  - ☝️ **Flick:** Power Scroll
