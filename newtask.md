@@ -1,24 +1,27 @@
-# Task: Implement Phone-Style "Touch & Flick" Navigation
+# Task: Refine Navigation to Physical "Touch & Flick" Model
 
 ## Objective
-Transform the current navigation logic into a physical simulation that mimics how we scroll on a smartphone. Use the 3D Gimbal as a "virtual thumb" and the Flick Shield as a "page flipper."
+Transform the mid-air scrolling into a physical simulation that mimics a smartphone. The 3D Gimbal will act as a 'Virtual Thumb' for continuous dragging (Joystick Drift), and finger snaps will act as 'Hard Swipes' (Snap-Flick).
 
 ## Technical Requirements
 
-### 1. Axis Locking (The Stability Pillar)
-Update `js/navigation-controller.js` to prioritize intent.
-- **Vertical Priority:** If the absolute `Pitch` (vertical tilt) is greater than the absolute `Yaw` (horizontal tilt), ignore all horizontal drift data until the hand returns to the neutral zone.
-- **Horizontal Priority:** If `Yaw` is triggered first (e.g., in the Gallery), ignore vertical drift. This prevents diagonal "jitter" while reading.
+### 1. Axis Locking & Intent Detection (`js/navigation-controller.js`)
+To prevent diagonal drift and jitter, implement an axis-lock:
+- **Dominant Axis Logic:** Compare the absolute values of `Pitch` and `Yaw`. 
+- If `Math.abs(pitch) > Math.abs(yaw) + 5`, lock the horizontal axis to 0 and focus purely on vertical scrolling.
+- If `Math.abs(yaw)` is dominant (primarily in Gallery mode), lock the vertical axis to 0.
+- **Reset:** Unlock the axes only when the hand returns to the neutral deadzone (12°).
 
-### 2. Physical Momentum & Friction (The Polish)
-Introduce "weight" to the scrolling so it doesn't stop abruptly.
-- **Velocity Accumulation:** Instead of moving the page exactly by the tilt degrees, use the degree value to add "acceleration" to a local velocity variable.
-- **Friction (Decay):** Apply a friction coefficient (e.g., `0.92`) so that when the hand returns to neutral, the page glides to a smooth stop over a few milliseconds rather than freezing instantly.
+### 2. The "Joystick Drift" (Continuous Dragging)
+Refine the continuous scroll physics to include momentum:
+- **Velocity Accumulation:** Instead of scrolling by a fixed degree value, use the tilt intensity to add "acceleration" to a velocity variable.
+- **Friction (Decay Factor):** Apply a friction coefficient of `0.92`. When the hand levels out, the velocity should multiply by `0.92` every frame, causing the content to glide to a smooth stop rather than freezing instantly.
+- **Curve Sync:** Maintain the `18 * Math.pow(intensity, 1.5)` curve as the base for this acceleration.
 
-### 3. Smart-Flick Integration (Page Flips)
-Sync the high-velocity snaps with the navigation speed.
-- **The Trigger:** Ensure `finger-flick` gestures remain guarded by `palmSpeed < 0.15` in `js/gesture-detector.js`.
-- **The Result:** Mapping a flick to a large, one-time scroll increment (e.g., 600px) to simulate a "hard swipe" on a phone screen.
+### 3. The "Snap-Flick" (Page Flings)
+Sync finger snaps with high-impact movement:
+- **Impulse Trigger:** When a `finger-flick` is detected (already shielded by `palmSpeed < 0.15`), trigger a one-time large scroll offset.
+- **Impact:** Map a flick to a `600px` jump (Vertical) or a `pageTurn` amount (Horizontal Gallery) to mimic 'flinging' a phone screen.
 
-### 4. Mathematical Curve Sync
-- Continue using `18 * Math.pow(intensity, 1.5)` as the base multiplier for the acceleration variable to maintain precise control at low angles.
+### 4. UI Feedback Sync
+- Ensure the **Action Feedback** overlay displays "DRIVING" during continuous drift and "FLICK" during snap-flicks to help the user distinguish the two modes.
