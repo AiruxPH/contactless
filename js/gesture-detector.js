@@ -550,16 +550,24 @@ class GestureDetector {
         const pinkyTip = landmarks[20];
         const pinkyMCP = landmarks[17];
         const pinkyDistance = this.getNormalizedDistance(pinkyTip, pinkyMCP, scale);
-        const pinkyClickThreshold = 0.5;
+        const pinkyClickThreshold = 0.52; // Slightly wider for ease
 
-        if (pinkyDistance < pinkyClickThreshold) {
-            if (!this.isPinkyTap) {
-                this.isPinkyTap = true;
-                this.emitGesture('pinky-click');
+        // Pinky Snap Guard: Compare current distance vs last frame to check for rapid snap
+        if (this.lastPinkyDistance !== undefined) {
+            const pinkyVelocity = (this.lastPinkyDistance - pinkyDistance); // > 0 means closing
+            const snapThreshold = 0.08; // Required closing speed to count as a "tap"
+
+            if (pinkyDistance < pinkyClickThreshold) {
+                if (!this.isPinkyTap && pinkyVelocity > snapThreshold) {
+                    this.isPinkyTap = true;
+                    this.emitGesture('pinky-click');
+                }
+            } else if (pinkyDistance > pinkyClickThreshold + 0.1) {
+                this.isPinkyTap = false;
             }
-        } else {
-            this.isPinkyTap = false;
         }
+        this.lastPinkyDistance = pinkyDistance;
+
 
         this.lastHandPosition = currentPosition;
         this.lastFingerPositions = currentFingers;

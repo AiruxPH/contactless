@@ -67,7 +67,6 @@ export default class MouseController {
             this.clickShieldTime = Date.now(); // Activate Click Shield
             this.handlePinkyClick();
         } else if (gesture === 'pinch-start') {
-
             this.isPinchingZoom = true;
             // Immediate check if we should lock zoom
             const elem = document.elementFromPoint(this.cursorX, this.cursorY);
@@ -79,6 +78,7 @@ export default class MouseController {
             this.isZoomLocked = false;
         }
     }
+
 
     handlePinkyClick() {
         // Trigger a complete click cycle

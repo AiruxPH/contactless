@@ -17,9 +17,13 @@ class NavigationController {
             'finger-flick-down': 'scroll_down',
             'finger-flick-left': 'scroll_right',
             'finger-flick-right': 'scroll_left',
-            'tilt-up': 'zoom_in',
-            'tilt-down': 'zoom_out'
+            'tilt-up': 'scroll_up',
+            'tilt-down': 'scroll_down',
+            'tilt-left': 'scroll_right',
+            'tilt-right': 'scroll_left',
+            'pinky-click': 'click'
         };
+
 
         // Continuous scrolling state
         this.scrollInterval = null;
@@ -133,12 +137,12 @@ class NavigationController {
                 intensity = Math.min(Math.max(intensity, 0.2), 3.0);
             }
             this.startContinuousScroll(gesture, intensity);
-        } else if (gesture === 'pinch-start') {
-
+        } else if (gesture === 'pinky-click') {
             this.handleClick();
-        } else if (gesture === 'pinch-end') {
-            // No specific action for end yet
+        } else if (gesture === 'pinch-start') {
+            // Pinch no longer clicks, purely for cursor visuals or zoom
         } else {
+
             // Impulse gestures (swipes, flicks)
             this.stopContinuousScroll();
 
@@ -178,7 +182,11 @@ class NavigationController {
             case 'scroll_down':
                 this.scrollDown(intensity);
                 break;
+            case 'click':
+                this.handleClick();
+                break;
             case 'scroll_right':
+
                 // Check if we are in gallery or reading mode
                 // For now assume standard "Next" behavior
                 if (this.isGalleryMode()) {
@@ -310,10 +318,11 @@ class NavigationController {
         const direction = (gesture.includes('down') || gesture.includes('right')) ? 1 : -1;
 
         this.scrollInterval = setInterval(() => {
-            // Base speed * intensity (variable based on tilt angle)
-            const scrollStep = 12 * this.currentContinuousIntensity * direction;
+            // Precision Scroll Curve: (alpha/max)^1.5 for fine minor adjustments
+            const scrollStep = 18 * Math.pow(this.currentContinuousIntensity, 1.5) * direction;
 
             if (isVertical) {
+
                 window.scrollBy(0, scrollStep);
             } else {
                 window.scrollBy(scrollStep, 0);
@@ -335,18 +344,25 @@ class NavigationController {
     }
 
     handleClick() {
-        // Simulate a click at the center of the viewport or cursor position
-        // For now, just show feedback
-        this.lastAction = 'Pinch Click';
-        this.showFeedback('🖱️ Click!');
-        this.updateStatus();
+        // Use coordinates from the specialized MouseController if it exists (global sync)
+        let x = window.innerWidth / 2;
+        let y = window.innerHeight / 2;
 
-        // Practical implementation: find element under cursor or center
-        const x = window.innerWidth / 2;
-        const y = window.innerHeight / 2;
+        const cursor = document.getElementById('hand-cursor');
+        if (cursor && cursor.style.left) {
+            x = parseFloat(cursor.style.left);
+            y = parseFloat(cursor.style.top);
+        }
+
         const elem = document.elementFromPoint(x, y);
-        if (elem) elem.click();
+        if (elem) {
+            this.lastAction = 'Pinky Click';
+            this.showFeedback('🖱️ Click!');
+            elem.click();
+        }
+        this.updateStatus();
     }
+
 
     navigatePrev() {
         const sections = Array.from(document.querySelectorAll('section'));
