@@ -6,11 +6,39 @@ class NavigationController {
         this.lastAction = 'None';
         this.handDetected = false;
 
+        // Mappings
+        this.mappings = this.loadMappings();
+        this.defaultMappings = {
+            'swipe-up': 'scroll_up',
+            'swipe-down': 'scroll_down',
+            'swipe-left': 'scroll_right', // Logic: Swipe Left moves content Right (Next)
+            'swipe-right': 'scroll_left', // Logic: Swipe Right moves content Left (Back)
+            'finger-flick-up': 'scroll_up',
+            'finger-flick-down': 'scroll_down',
+            'finger-flick-left': 'scroll_right',
+            'finger-flick-right': 'scroll_left',
+            'tilt-up': 'zoom_in',
+            'tilt-down': 'zoom_out'
+        };
+
         // Continuous scrolling state
         this.scrollInterval = null;
         this.activeContinuousGesture = null;
 
         this.init();
+    }
+
+    loadMappings() {
+        // Invert the stored mapping (Action -> Gesture) to (Gesture -> Action) for O(1) lookup
+        const saved = localStorage.getItem('gestureMappings');
+        if (!saved) return {};
+
+        const actionToGesture = JSON.parse(saved);
+        const gestureToAction = {};
+        for (const [action, gesture] of Object.entries(actionToGesture)) {
+            gestureToAction[gesture] = action;
+        }
+        return gestureToAction;
     }
 
     init() {
@@ -28,16 +56,39 @@ class NavigationController {
             }
         });
 
+        // Listen for mapping updates
+        window.addEventListener('mappingUpdated', () => {
+            this.mappings = this.loadMappings();
+        });
+
         this.updateStatus();
+    }
+
+    getActionForGesture(gesture) {
+        // 1. Check Custom Mappings first
+        if (this.mappings[gesture]) return this.mappings[gesture];
+
+        // 2. Check Defaults
+        return this.defaultMappings[gesture] || null;
     }
 
     handleGesture(gesture, data) {
         this.currentGesture = this.formatGestureName(gesture);
         this.updateStatus();
 
+        const action = this.getActionForGesture(gesture);
+
         // Handle continuous gesture lifecycle
         if (gesture.includes('tilt')) {
-            this.startContinuousScroll(gesture);
+            // Special handling for tilts as they are continuous
+            // We map the *direction* to the action
+            // If the gesture is mapped to 'zoom_in', we treat it as such
+            if (action === 'zoom_in' || action === 'zoom_out') {
+                // TODO: Implement Zoom
+                this.handleZoom(action);
+            } else {
+                this.startContinuousScroll(gesture);
+            }
         } else if (gesture === 'pinch-start') {
             this.handleClick();
         } else if (gesture === 'pinch-end') {
@@ -53,27 +104,14 @@ class NavigationController {
                 intensity = Math.min(Math.max(data.velocity / 1.5, 1), 4);
             }
 
-            switch (gesture) {
-                case 'swipe-down':
-                case 'finger-flick-down':
-                    this.scrollDown(intensity);
-                    break;
-                case 'swipe-up':
-                case 'finger-flick-up':
-                    this.scrollUp(intensity);
-                    break;
-                case 'swipe-left':
-                    this.navigateNext(); // Snap to next section
-                    break;
-                case 'swipe-right':
-                    this.navigatePrev(); // Snap to prev section
-                    break;
-                case 'finger-flick-left':
-                    this.scrollLeft(intensity);
-                    break;
-                case 'finger-flick-right':
-                    this.scrollRight(intensity);
-                    break;
+            // Execute Action
+            if (action) {
+                this.executeAction(action, intensity);
+            } else {
+                // Fallback to legacy hardcoded switch if no mapping found (compatibility)
+                // Or we can just rely on defaultMappings covering everything.
+                // For now, let's trust getActionForGesture covers defaults.
+                console.log('No action mapped for:', gesture);
             }
         }
 
@@ -82,6 +120,60 @@ class NavigationController {
             this.currentGesture = 'None';
             this.updateStatus();
         }, 1000);
+    }
+
+    executeAction(action, intensity) {
+        switch (action) {
+            case 'scroll_up':
+                this.scrollUp(intensity);
+                break;
+            case 'scroll_down':
+                this.scrollDown(intensity);
+                break;
+            case 'scroll_right':
+                // Check if we are in gallery or reading mode
+                // For now assume standard "Next" behavior
+                if (this.isGalleryMode()) {
+                    this.scrollRight(intensity);
+                } else {
+                    this.navigateNext(); // Section snap for main page
+                }
+                break;
+            case 'scroll_left':
+                if (this.isGalleryMode()) {
+                    this.scrollLeft(intensity);
+                } else {
+                    this.navigatePrev(); // Section snap for main page
+                }
+                break;
+            case 'zoom_in':
+                this.zoomIn();
+                break;
+            case 'zoom_out':
+                this.zoomOut();
+                break;
+        }
+    }
+
+    isGalleryMode() {
+        return document.querySelector('.gallery-stage') || window.location.pathname.endsWith('gallery.html');
+    }
+
+    // Zoom Stubs (for now)
+    zoomIn() {
+        document.body.style.zoom = (parseFloat(document.body.style.zoom || 1) + 0.1);
+        this.lastAction = 'Zoom On';
+        this.updateStatus();
+    }
+
+    zoomOut() {
+        document.body.style.zoom = (parseFloat(document.body.style.zoom || 1) - 0.1);
+        this.lastAction = 'Zoom Out';
+        this.updateStatus();
+    }
+
+    handleSubmit() {
+        // Placeholder
     }
 
     scrollUp(intensity = 1) {

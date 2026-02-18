@@ -119,12 +119,22 @@
                 <h4>🎨 Try the AntiGravity Gallery!</h4>
                 <p>Experience a dedicated horizontal scrolling space where you can explore frictionless, weightless
                     navigation using left and right gestures.</p>
-                <p style="text-align: center; margin-top: 20px;">
+                <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-top: 20px; justify-content: center;">
                     <a href="gallery.html"
-                        style="display: inline-block; padding: 15px 30px; background: linear-gradient(135deg, #6e45e2 0%, #88d3ce 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 1.1em; box-shadow: 0 4px 15px rgba(110, 69, 226, 0.3); transition: transform 0.3s, box-shadow 0.3s;">
+                        style="display: inline-block; padding: 15px 30px; background: linear-gradient(135deg, #6e45e2 0%, #88d3ce 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 1.1em; box-shadow: 0 4px 15px rgba(110, 69, 226, 0.3); transition: transform 0.3s;">
                         Launch Gallery →
                     </a>
-                </p>
+
+                    <a href="train-gestures.html"
+                        style="display: inline-block; padding: 15px 30px; background: linear-gradient(135deg, #ff9966 0%, #ff5e62 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 1.1em; box-shadow: 0 4px 15px rgba(255, 94, 98, 0.3); transition: transform 0.3s;">
+                        Train Gestures ✋
+                    </a>
+
+                    <a href="aerial-mouse.html"
+                        style="display: inline-block; padding: 15px 30px; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 1.1em; box-shadow: 0 4px 15px rgba(56, 239, 125, 0.3); transition: transform 0.3s;">
+                        Aerial Mouse 🖱️
+                    </a>
+                </div>
             </div>
         </section>
 
@@ -148,66 +158,27 @@
     <script type="module">
         import GestureDetector from './js/gesture-detector.js';
         import NavigationController from './js/navigation-controller.js';
+        import CameraManager from './js/camera-manager.js';
 
         const video = document.getElementById('webcam');
         const canvas = document.getElementById('output');
         const switchBtn = document.getElementById('switch-camera-btn');
         const cameraNameSpan = document.getElementById('camera-name');
         const deviceListDiv = document.getElementById('device-list');
+        const handStatus = document.getElementById('hand-status');
 
-        let currentStream = null;
-        let videoDevices = [];
-        let currentDeviceIndex = 0;
         let gestureDetector = null;
         let navigationController = null;
+        let cameraManager = null;
 
-        async function getDevices() {
+        async function initApp() {
             try {
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                videoDevices = devices.filter(device => device.kind === 'videoinput');
-                console.log('Available video devices:', videoDevices);
+                // Request permission first
+                console.log('Requesting initial camera permission...');
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                stream.getTracks().forEach(t => t.stop());
 
-                // Update UI list
-                if (deviceListDiv) {
-                    deviceListDiv.innerHTML = videoDevices.map((d, i) =>
-                        `<div style="${i === currentDeviceIndex ? 'color: #4CAF50; font-weight: bold;' : ''}">${d.label || 'Camera ' + (i + 1)}</div>`
-                    ).join('') || 'No cameras found';
-                }
-
-                // Prioritize DroidCam if found and we haven't manually switched
-                const droidCamIndex = videoDevices.findIndex(d => d.label.toLowerCase().includes('droidcam'));
-                if (droidCamIndex !== -1 && currentDeviceIndex === 0) {
-                    currentDeviceIndex = droidCamIndex;
-                    console.log('DroidCam matched at index:', currentDeviceIndex);
-                }
-            } catch (err) {
-                console.error('Error enumerating devices:', err);
-                if (deviceListDiv) deviceListDiv.textContent = 'Error scanning devices';
-            }
-        }
-
-        async function startCamera(deviceId) {
-            console.log('Starting camera with deviceId:', deviceId);
-            if (currentStream) {
-                currentStream.getTracks().forEach(track => track.stop());
-            }
-
-            // Try with specific resolution first, then fallback
-            const constraintSets = [
-                { video: { deviceId: deviceId ? { exact: deviceId } : undefined, width: 640, height: 480 } },
-                { video: { deviceId: deviceId ? { exact: deviceId } : undefined } },
-                { video: true }
-            ];
-
-            let lastError = null;
-            for (const constraints of constraintSets) {
-                try {
-                    console.log('Trying constraints:', constraints);
-                    const stream = await navigator.mediaDevices.getUserMedia(constraints);
-                    currentStream = stream;
-                    video.srcObject = stream;
-                    await video.play();
-
+                cameraManager = new CameraManager(video, (stream) => {
                     const track = stream.getVideoTracks()[0];
                     if (cameraNameSpan) cameraNameSpan.textContent = track.label || 'Unknown Camera';
 
@@ -215,42 +186,32 @@
                         gestureDetector = new GestureDetector(video, canvas);
                         navigationController = new NavigationController(gestureDetector);
                     } else {
-                        gestureDetector.video = video;
+                        gestureDetector.video = video; // Update video element reference if needed
                     }
 
-                    const handStatus = document.getElementById('hand-status');
                     if (handStatus) handStatus.textContent = 'Camera Ready';
-                    console.log('Camera started successfully with label:', track.label);
-                    return; // Success
-                } catch (err) {
-                    lastError = err;
-                    console.warn('Failed with constraints:', constraints, err);
+                });
+
+                await cameraManager.getDevices();
+
+                // Update UI list
+                if (deviceListDiv) {
+                    deviceListDiv.innerHTML = cameraManager.videoDevices.map((d, i) =>
+                        `<div style="${i === cameraManager.currentDeviceIndex ? 'color: #4CAF50; font-weight: bold;' : ''}">${d.label || 'Camera ' + (i + 1)}</div>`
+                    ).join('') || 'No cameras found';
                 }
-            }
 
-            console.error('All camera constraint sets failed:', lastError);
-            const handStatus = document.getElementById('hand-status');
-            if (handStatus) handStatus.textContent = 'Camera Fallback Error';
-        }
-
-        // Initialize application
-        async function initApp() {
-            try {
-                // Request permission first to get device labels
-                console.log('Requesting initial camera permission...');
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                stream.getTracks().forEach(t => t.stop());
-
-                await getDevices();
-                if (videoDevices.length > 0) {
-                    await startCamera(videoDevices[currentDeviceIndex].deviceId);
+                if (cameraManager.videoDevices.length > 0) {
+                    await cameraManager.startCamera(cameraManager.videoDevices[cameraManager.currentDeviceIndex].deviceId);
                 } else {
                     if (deviceListDiv) deviceListDiv.textContent = 'No cameras detected';
                     console.error('No video devices returned by enumerateDevices');
                 }
+
             } catch (err) {
                 console.error('Initialization error:', err);
                 alert('Camera permission is required for this app.');
+                if (handStatus) handStatus.textContent = 'Camera Error';
             }
         }
 
@@ -259,20 +220,8 @@
         // Switch camera logic
         if (switchBtn) {
             switchBtn.addEventListener('click', async () => {
-                if (videoDevices.length > 1) {
-                    currentDeviceIndex = (currentDeviceIndex + 1) % videoDevices.length;
-                    console.log('Switching to device index:', currentDeviceIndex);
-                    await startCamera(videoDevices[currentDeviceIndex].deviceId);
-                    await getDevices(); // Refresh list to update highlight
-                } else {
-                    // Try refreshing devices in case one was plugged in
-                    await getDevices();
-                    if (videoDevices.length > 1) {
-                        switchBtn.click();
-                    } else {
-                        alert('Only one camera detected.');
-                    }
-                }
+                await cameraManager.switchCamera();
+                await cameraManager.getDevices(); // Refresh list to update highlight
             });
         }
 
