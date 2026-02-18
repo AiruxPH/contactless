@@ -29,14 +29,24 @@ class NavigationController {
     }
 
     loadMappings() {
-        // Invert the stored mapping (Action -> Gesture) to (Gesture -> Action) for O(1) lookup
+        // Invert the stored mapping (Action -> [Gestures] or Action -> Gesture) 
+        // to (Gesture -> Action) for O(1) lookup
         const saved = localStorage.getItem('gestureMappings');
         if (!saved) return {};
 
-        const actionToGesture = JSON.parse(saved);
+        const actionToGestures = JSON.parse(saved);
         const gestureToAction = {};
-        for (const [action, gesture] of Object.entries(actionToGesture)) {
-            gestureToAction[gesture] = action;
+
+        for (const [action, gestures] of Object.entries(actionToGestures)) {
+            // Handle both legacy (string) and new (array) formats
+            if (Array.isArray(gestures)) {
+                gestures.forEach(gesture => {
+                    gestureToAction[gesture] = action;
+                });
+            } else {
+                // Legacy single gesture support (migration)
+                gestureToAction[gestures] = action;
+            }
         }
         return gestureToAction;
     }

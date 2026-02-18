@@ -33,39 +33,56 @@ export default class GestureRecorder {
     }
 
     getMapping(actionId) {
-        return this.mappings[actionId] || this.actions.find(a => a.id === actionId)?.defaultGesture;
-    }
+        // Return array of gestures (custom or default)
+        const custom = this.mappings[actionId];
+        if (custom && custom.length > 0) return custom;
 
-    getActionForGesture(gesture) {
-        // Reverse lookup: Find action that has this gesture mapped
-        // 1. Check Custom Mappings
-        for (const [actionId, mappedGesture] of Object.entries(this.mappings)) {
-            if (mappedGesture === gesture) return actionId;
-        }
-
-        // 2. Check Defaults (if not overridden)
-        for (const action of this.actions) {
-            if (!this.mappings[action.id] && action.defaultGesture === gesture) {
-                return action.id;
-            }
-        }
-        return null;
+        const def = this.actions.find(a => a.id === actionId)?.defaultGesture;
+        return def ? [def] : [];
     }
 
     saveMapping(actionId, gesture) {
-        this.mappings[actionId] = gesture;
-        localStorage.setItem('gestureMappings', JSON.stringify(this.mappings));
-        this.renderActionList(this.container);
+        if (!this.mappings[actionId]) {
+            this.mappings[actionId] = [];
+        }
 
-        // Notify user
-        const event = new CustomEvent('mappingUpdated', { detail: { actionId, gesture } });
-        window.dispatchEvent(event);
+        // Avoid duplicates
+        if (!this.mappings[actionId].includes(gesture)) {
+            this.mappings[actionId].push(gesture);
+            localStorage.setItem('gestureMappings', JSON.stringify(this.mappings));
+            this.renderActionList(this.container);
+
+            // Notify user
+            const event = new CustomEvent('mappingUpdated', { detail: { actionId, gestures: this.mappings[actionId] } });
+            window.dispatchEvent(event);
+        }
+    }
+
+    removeMapping(actionId, gestureToRemove) {
+        if (this.mappings[actionId]) {
+            this.mappings[actionId] = this.mappings[actionId].filter(g => g !== gestureToRemove);
+
+            // If empty, removing the key causes revert to default. 
+            // If we want "no gesture", we might need an explicit empty array handling or just assume default fallback.
+            // For now, if empty, we remove key to revert to default.
+            if (this.mappings[actionId].length === 0) {
+                delete this.mappings[actionId];
+            }
+
+            localStorage.setItem('gestureMappings', JSON.stringify(this.mappings));
+            this.renderActionList(this.container);
+
+            const event = new CustomEvent('mappingUpdated', { detail: { actionId, gestures: this.mappings[actionId] } });
+            window.dispatchEvent(event);
+        }
     }
 
     resetMappings() {
         this.mappings = {};
         localStorage.removeItem('gestureMappings');
         this.renderActionList(this.container);
+        // Force update
+        window.dispatchEvent(new CustomEvent('mappingUpdated', { detail: { reset: true } }));
     }
 
     renderActionList(container) {
@@ -73,22 +90,32 @@ export default class GestureRecorder {
         container.innerHTML = '';
 
         this.actions.forEach(action => {
-            const currentGesture = this.getMapping(action.id);
+            const currentGestures = this.getMapping(action.id);
+            const isCustom = !!this.mappings[action.id];
 
             const card = document.createElement('div');
             card.className = 'action-card';
 
+            // Gestures HTML
+            const gesturesHtml = currentGestures.map(g => `
+                <span class="gesture-badge" style="display:inline-flex; align-items:center;">
+                    ${g}
+                    ${isCustom ? `<span class="remove-gesture" data-action="${action.id}" data-gesture="${g}" style="margin-left:5px; cursor:pointer; color:#888;">&times;</span>` : ''}
+                </span>
+            `).join(' ');
+
             card.innerHTML = `
                 <div>
                     <strong>${action.label}</strong>
-                    <div style="margin-top: 5px;">
-                        <span class="gesture-badge">${currentGesture}</span>
-                        ${this.mappings[action.id] ? '<span style="font-size: 0.8em; color: #888;">(Custom)</span>' : '<span style="font-size: 0.8em; color: #aaa;">(Default)</span>'}
+                    <div style="margin-top: 5px; display:flex; flex-wrap:wrap; gap:5px;">
+                        ${gesturesHtml}
+                        ${!isCustom && currentGestures.length > 0 ? '<span style="font-size: 0.8em; color: #aaa; align-self:center;">(Default)</span>' : ''}
                     </div>
                 </div>
-                <button class="btn-record" data-id="${action.id}">Record</button>
+                <button class="btn-record" data-id="${action.id}">+ Add</button>
             `;
 
+            // Record Button
             const btn = card.querySelector('.btn-record');
             btn.addEventListener('click', (e) => {
                 if (this.isRecording && this.recordingAction === action.id) {
@@ -96,6 +123,16 @@ export default class GestureRecorder {
                 } else {
                     this.startRecording(action.id, btn);
                 }
+            });
+
+            // Remove Buttons
+            card.querySelectorAll('.remove-gesture').forEach(remBtn => {
+                remBtn.addEventListener('click', (e) => {
+                    e.stopPropagation(); // Prevent card clicks if any
+                    const act = remBtn.dataset.action;
+                    const gest = remBtn.dataset.gesture;
+                    this.removeMapping(act, gest);
+                });
             });
 
             container.appendChild(card);
