@@ -101,16 +101,16 @@ class NavigationController {
             const powerFactor = (1 - this.friction); // Steady state calibration
 
             if (this.activeAxis === 'pitch' && handOpen && isFacingCamera) {
-                this.pitchIntensity = (absPitch - deadzone) / (maxAngle - deadzone);
-                this.pitchIntensity = Math.min(Math.max(this.pitchIntensity, 0), 3.0);
+                const newIntensity = (absPitch - deadzone) / (maxAngle - deadzone);
+                this.pitchIntensity = (this.pitchIntensity * 0.7) + (Math.min(Math.max(newIntensity, 0), 3.0) * 0.3);
                 this.pitchDirection = pitch > 0 ? 1 : -1;
 
                 const accel = (18 * Math.pow(this.pitchIntensity, 1.5)) * powerFactor;
                 this.velocityY += accel * this.pitchDirection;
                 this.lastAction = 'DRIVING ↑↓';
             } else if (this.activeAxis === 'yaw' && handOpen && isFacingCamera) {
-                this.yawIntensity = (absYaw - deadzone) / (maxAngle - deadzone);
-                this.yawIntensity = Math.min(Math.max(this.yawIntensity, 0), 3.0);
+                const newIntensity = (absYaw - deadzone) / (maxAngle - deadzone);
+                this.yawIntensity = (this.yawIntensity * 0.7) + (Math.min(Math.max(newIntensity, 0), 3.0) * 0.3);
                 this.yawDirection = yaw > 0 ? 1 : -1;
 
                 const accel = (18 * Math.pow(this.yawIntensity, 1.5)) * powerFactor;
@@ -128,8 +128,14 @@ class NavigationController {
             this.velocityX *= this.friction;
             this.velocityY *= this.friction;
 
-            // 2. GLIDING detection (when hand is neutral or lost but still moving)
-            const speed = Math.sqrt(this.velocityX * this.velocityX + this.velocityY * this.velocityY);
+            // 2. NOISE GATE: Stop micro-drifting
+            let speed = Math.sqrt(this.velocityX * this.velocityX + this.velocityY * this.velocityY);
+            if (speed < 0.5) {
+                this.velocityX = 0;
+                this.velocityY = 0;
+                speed = 0;
+            }
+
             if (this.activeAxis === null && speed > 2) {
                 this.lastAction = 'GLIDING...';
             } else if (this.activeAxis === null && speed <= 2 && this.lastAction.includes('GLIDING')) {

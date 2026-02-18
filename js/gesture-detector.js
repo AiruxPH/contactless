@@ -18,6 +18,9 @@ class GestureDetector {
         this.gestureCooldown = 400; // ms between gestures (reduced for better responsiveness)
         this.enableVisualCursor = true; // Default to true, can be disabled by controllers
 
+        // Refined Flick Stability State
+        this.handStateHistory = [];
+        this.maxHistory = 5;
 
         this.init();
     }
@@ -416,6 +419,16 @@ class GestureDetector {
             handDetected: true
         });
 
+        // 2.5 Update Stability History
+        this.handStateHistory.push({
+            isOpen: isOpen,
+            isFacing: isFacingCamera,
+            time: now
+        });
+        if (this.handStateHistory.length > this.maxHistory) {
+            this.handStateHistory.shift();
+        }
+
 
 
 
@@ -481,7 +494,7 @@ class GestureDetector {
 
             // FLICK SHIELD: Only allow flicks if the palm is stationary
             // This prevents accidental "swipe-flick" collisions
-            const palmStabilityThreshold = 0.15;
+            const palmStabilityThreshold = 0.12; // Tightened from 0.15
 
             // Calculate current palm speed for the shield
             let palmSpeed = 0;
@@ -493,7 +506,11 @@ class GestureDetector {
                 palmSpeed = magnitude / Math.max(palmDeltaTime, 0.001);
             }
 
-            if (deltaTime > 0 && palmSpeed < palmStabilityThreshold) {
+            // MULTI-FRAME STABILITY CHECK
+            const isHistoricallyStable = this.handStateHistory.length >= this.maxHistory &&
+                this.handStateHistory.every(state => state.isOpen && state.isFacing);
+
+            if (deltaTime > 0 && palmSpeed < palmStabilityThreshold && isHistoricallyStable) {
                 const indexVelY = (currentFingers.index.y - this.lastFingerPositions.index.y) / deltaTime;
                 const middleVelY = (currentFingers.middle.y - this.lastFingerPositions.middle.y) / deltaTime;
                 const indexVelX = (currentFingers.index.x - this.lastFingerPositions.index.x) / deltaTime;

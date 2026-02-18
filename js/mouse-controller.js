@@ -165,7 +165,10 @@ export default class MouseController {
         // Normalized speed where we reach max responsiveness
         const speedThreshold = 800; // Pixels per second
         const lerpT = Math.min(1, speed / speedThreshold);
-        const adaptiveLerp = this.minLerp + (this.maxLerp - this.minLerp) * lerpT;
+
+        // Exponential Logic: Use square of lerpT to make slow movement even smoother
+        const smoothLerpT = Math.pow(lerpT, 2);
+        const adaptiveLerp = this.minLerp + (this.maxLerp - this.minLerp) * smoothLerpT;
 
         this.cursorX += (targetX - this.cursorX) * adaptiveLerp;
         this.cursorY += (targetY - this.cursorY) * adaptiveLerp;
