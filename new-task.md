@@ -1,31 +1,69 @@
-I have built a modular contactless navigation system using MediaPipe. I need to improve the gesture accuracy and 'mouse' feel by moving away from fixed pixel thresholds to adaptive, normalized physics. Please help me update the following logic:
+1. Update GestureDetector (Normalization Logic)
+In your js/gesture-detector.js, you should add a method to calculate the "Reference Scale" of the hand. This scale is the distance between the Wrist (Landmark 0) and the Middle Finger Base (Landmark 9).
 
-1. Adaptive Scaling (Hand-Size Normalization):
-In js/gesture-detector.js, I need to stop using hardcoded distance thresholds (like 0.05 for pinches).
+// Add this to your GestureDetector class in js/gesture-detector.js
+getHandScale(landmarks) {
+    // Distance from Wrist (0) to Middle Finger MCP (9)
+    // This represents the "palm size" which stays consistent regardless of finger movement
+    return this.getDistance(landmarks[0], landmarks[9]);
+}
 
-The Logic: Calculate a handScale based on the distance between the Wrist (Landmark 0) and the Middle Finger Base (Landmark 9).
+getNormalizedDistance(point1, point2, scale) {
+    const rawDistance = this.getDistance(point1, point2);
+    // Returning distance relative to the hand size
+    return rawDistance / scale;
+}
 
-The Goal: Update getDistance or create a getNormalizedDistance function so that a 'pinch' or a 'flick' is detected the same way whether the hand is 1 meter or 30 centimeters from the camera.
+2. Apply to Pinch Detection
+Update your pinch logic to use this normalized distance. Instead of a hardcoded 0.05, you can use a ratio (e.g., 0.4 of a palm size):
 
-2. Frictionless Cursor Smoothing (EMA Filtering):
-In js/mouse-controller.js, the cursor is currently too jittery.
+// Inside detectGesture(landmarks)
+const scale = this.getHandScale(landmarks);
+const pinchDistance = this.getNormalizedDistance(landmarks[4], landmarks[8], scale);
 
-The Logic: Implement an Exponential Moving Average (EMA) for the cursorX and cursorY coordinates.
+// Now 0.4 means "the gap is 40% of the palm's length" 
+// This works whether the hand is close or far away!
+if (pinchDistance < 0.4) { 
+    if (!this.isPinching) {
+        this.isPinching = true;
+        this.emitGesture('pinch-start');
+    }
+}
 
-The Goal: Instead of snapping to new coordinates, the cursor should 'drift' smoothly toward the target (e.g., current = (target * 0.2) + (current * 0.8)) to create a weightless, premium feel.
+3. Smooth Cursor Logic (EMA)
+In your js/mouse-controller.js, apply the Exponential Moving Average to the coordinates. This removes the "jitter" caused by small sensor fluctuations.
 
-3. Precision Click-Locking:
-Update the startInteraction method in js/mouse-controller.js.
+// In js/mouse-controller.js, update your updateLoop or handleFrame
+updateCursorSmoothing(targetX, targetY) {
+    const lerpFactor = 0.15; // Lower = smoother/slower, Higher = snappier/jitterier
+    
+    this.cursorX = (targetX * lerpFactor) + (this.cursorX * (1 - lerpFactor));
+    this.cursorY = (targetY * lerpFactor) + (this.cursorY * (1 - lerpFactor));
+    
+    if (this.cursor) {
+        this.cursor.style.left = `${this.cursorX}px`;
+        this.cursor.style.top = `${this.cursorY}px`;
+    }
+}
 
-The Logic: To prevent 'cursor slip' during a pinch, implement a temporary coordinate lock.
+4. Precision Click-Lock
+To prevent the cursor from jumping when the user pinches (a common issue called "Pinch-Drift"), add a small timer to the click:
 
-The Goal: When isPinching becomes true, freeze the cursorX and cursorY values for 150ms to ensure the click hits the exact button the user intended.
+// In js/mouse-controller.js
+startInteraction() {
+    this.isDown = true;
+    this.lockCursor = true; // Temporary flag
+    
+    setTimeout(() => {
+        this.lockCursor = false;
+    }, 150ms); // Lock for a split second during the click action
+    
+    // ... rest of your click logic
+}
 
-4. Visual Polish (AntiGravity Style):
-Update css/style.css and the updateLoop in js/mouse-controller.js to reflect gesture intensity:
+Why this improves accuracy:
+-Distance Agnostic: Users can move closer or further from the webcam without the gestures "breaking".
 
-Interactive Glow: Increase the box-shadow/glow of the #hand-cursor based on the pinchDistance—the closer the fingers get, the tighter and brighter the glow becomes.
+-Stable Pointing: The EMA filter makes the Aerial Mouse feel like it's gliding on ice rather than vibrating.
 
-Magnetic Targets: Add logic to 'snap' the cursor slightly toward .target-button elements when it enters their bounding box.
-
-The goal is to make the interface feel like it’s controlled by intention and light, rather than raw, noisy sensor data.
+-Intentional Clicking: The click-lock ensures that when you pinch to click "Lumina" in your gallery, the cursor doesn't accidentally slide over to "Aether".
