@@ -5,6 +5,7 @@ class GestureDetector {
         this.ctx = canvasElement.getContext('2d');
         this.handLandmarker = null;
         this.isDetecting = false;
+        this.onHandFrame = null; // Callback for real-time 3D landmark data
         this.lastHandPosition = null;
         this.lastPalmAngle = null; // Track palm rotation angle
         this.lastFingerPositions = null; // Track finger positions for flick detection
@@ -117,6 +118,17 @@ class GestureDetector {
                             results.worldLandmarks ? results.worldLandmarks[0] : null,
                             results.handedness && results.handedness[0] ? results.handedness[0][0] : null
                         );
+
+                        // Emit processed frame data for 3D simulator
+                        if (this.onHandFrame) {
+                            this.onHandFrame({
+                                landmarks: results.landmarks[0],
+                                worldLandmarks: results.worldLandmarks ? results.worldLandmarks[0] : null,
+                                isPaused: this.isPaused,
+                                isRingClosed: this.isRingClosed,
+                                handedness: results.handedness && results.handedness[0] ? results.handedness[0][0] : null
+                            });
+                        }
 
 
 
