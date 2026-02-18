@@ -204,21 +204,21 @@
                 document.getElementById('hand-gesture').textContent = gesture.toUpperCase();
             });
 
-            // Tracking Frame Loop for UI
-            const updateUI = () => {
-                const presenceEl = document.getElementById('hand-presence');
-                const engagementEl = document.getElementById('engagement-status');
-                const pauseEl = document.getElementById('pause-status');
-
-                // We'll need to expose some state from gestureDetector or use events
-                requestAnimationFrame(updateUI);
-            };
-            updateUI();
+            // The Hand3DController handles status updates for 'hand-presence', 
+            // 'engagement-status', and 'pause-status' internally via the onHandFrame event.
 
             // Camera Selection
-            const cameras = await cameraManager.getCameras();
-            cameraSelect.innerHTML = cameras.map(c => `<option value="${c.deviceId}">${c.label}</option>`).join('');
-            cameraSelect.onchange = (e) => cameraManager.switchCamera(e.target.value);
+            const cameras = await cameraManager.getDevices();
+            if (cameras.length > 0) {
+                cameraSelect.innerHTML = cameras.map(c => `<option value="${c.deviceId}">${c.label || 'Unknown Camera'}</option>`).join('');
+                
+                // Start the first camera automatically
+                await cameraManager.startCamera(cameras[0].deviceId);
+            } else {
+                cameraSelect.innerHTML = '<option>No Cameras Found</option>';
+            }
+
+            cameraSelect.onchange = (e) => cameraManager.startCamera(e.target.value);
 
             // Inject Shooting Stars
             const starsContainer = document.querySelector('.stars');

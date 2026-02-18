@@ -153,6 +153,11 @@ class GestureDetector {
                         } else {
                             this.clenchStartTime = null;
                         }
+
+                        // Notify listeners that no hand is detected
+                        if (this.onHandFrame) {
+                            this.onHandFrame(null);
+                        }
                     }
                 }
             } catch (error) {

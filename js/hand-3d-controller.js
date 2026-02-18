@@ -10,12 +10,12 @@ export default class Hand3DController {
         this.scene.background = new THREE.Color(0x0a0a0c);
 
         // Camera
-        this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        this.camera.position.z = 2; // Closer for hand detail
+        this.camera = new THREE.PerspectiveCamera(75, this.canvas.clientWidth / this.canvas.clientHeight, 0.1, 1000);
+        this.camera.position.z = 1.5; // Slightly closer for hand detail
 
         // Renderer
         this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: true });
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.updateRendererSize();
         this.renderer.setPixelRatio(window.devicePixelRatio);
 
         // Lighting
@@ -142,13 +142,36 @@ export default class Hand3DController {
     hideHand() {
         this.joints.forEach(j => j.visible = false);
         this.segments.forEach(s => s.visible = false);
+
+        // Reset UI Status
         const presenceEl = document.getElementById('hand-presence');
         if (presenceEl) presenceEl.textContent = 'Searching...';
+
+        const gestureEl = document.getElementById('hand-gesture');
+        if (gestureEl) gestureEl.textContent = '---';
+
+        const engagementEl = document.getElementById('engagement-status');
+        if (engagementEl) {
+            engagementEl.textContent = 'Released';
+            engagementEl.style.color = '#38bdf8';
+        }
+
+        const pauseEl = document.getElementById('pause-status');
+        if (pauseEl) {
+            pauseEl.textContent = 'ACTIVE';
+            pauseEl.style.color = '#38bdf8';
+        }
+    }
+
+    updateRendererSize() {
+        const width = this.canvas.clientWidth;
+        const height = this.canvas.clientHeight;
+        this.renderer.setSize(width, height, false);
     }
 
     onWindowResize() {
-        this.camera.aspect = window.innerWidth / window.innerHeight;
+        this.updateRendererSize();
+        this.camera.aspect = this.canvas.clientWidth / this.canvas.clientHeight;
         this.camera.updateProjectionMatrix();
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
     }
 }
