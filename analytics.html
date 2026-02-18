@@ -195,8 +195,9 @@
 
             <div style="position: absolute; bottom: 20px; left: 20px; display: flex; gap: 10px;">
                 <button id="toggle-indices" class="active">Show Landmarks IDs</button>
-                <button id="toggle-mirror">Mirror Camera</button>
+                <button id="toggle-mirror" class="active">Mirror Camera</button>
             </div>
+
         </div>
 
         <!-- Data Pane -->
@@ -285,7 +286,9 @@
                 const devices = await cameraManager.getDevices();
                 if (devices.length > 0) {
                     await cameraManager.startCamera(devices[0].deviceId);
+                    gestureDetector.applyMirrorEffect(); // Apply initial state
                 } else {
+
                     console.error('No cameras found');
                 }
 

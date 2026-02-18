@@ -19,6 +19,26 @@ class GestureDetector {
         this.init();
     }
 
+
+    get isMirror() {
+        return this._isMirror;
+    }
+
+    set isMirror(value) {
+        this._isMirror = value;
+        this.applyMirrorEffect();
+    }
+
+    applyMirrorEffect() {
+        if (!this.video || !this.canvas) return;
+
+        const transform = this._isMirror ? 'scaleX(-1)' : 'none';
+        this.video.style.transform = transform;
+        this.canvas.style.transform = transform;
+
+        console.log(`Mirror Mode: ${this._isMirror ? 'ON' : 'OFF'}`);
+    }
+
     async init() {
         try {
             // Import MediaPipe Vision
