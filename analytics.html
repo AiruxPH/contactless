@@ -193,10 +193,15 @@
             <video id="camera-feed" autoplay playsinline muted></video>
             <canvas id="tracking-canvas"></canvas>
 
-            <div style="position: absolute; bottom: 20px; left: 20px; display: flex; gap: 10px;">
+            <div style="position: absolute; bottom: 20px; left: 20px; display: flex; gap: 10px; align-items: center;">
+                <select id="camera-select"
+                    style="background: #1e293b; color: #fff; border: 1px solid #334155; padding: 8px; border-radius: 6px; font-size: 0.9em; max-width: 200px;">
+                    <option value="">Detecting Cameras...</option>
+                </select>
                 <button id="toggle-indices" class="active">Show Landmarks IDs</button>
                 <button id="toggle-mirror" class="active">Mirror Camera</button>
             </div>
+
 
         </div>
 
@@ -317,17 +322,47 @@
 
             const controller = new AnalyticsController(gestureDetector);
 
-            try {
-                // Correct Camera Initialization
-                const devices = await cameraManager.getDevices();
-                if (devices.length > 0) {
-                    await cameraManager.startCamera(devices[0].deviceId);
-                    gestureDetector.applyMirrorEffect(); // Apply initial state
-                } else {
+            // Camera Identification & Selection
+            const cameraSelect = document.getElementById('camera-select');
 
-                    console.error('No cameras found');
+            const updateCameraList = async () => {
+                const devices = await cameraManager.getDevices();
+                cameraSelect.innerHTML = '';
+
+                if (devices.length === 0) {
+                    const opt = document.createElement('option');
+                    opt.textContent = 'No cameras found';
+                    cameraSelect.appendChild(opt);
+                    return;
                 }
 
+                devices.forEach(device => {
+                    const opt = document.createElement('option');
+                    opt.value = device.deviceId;
+                    opt.textContent = device.label || `Camera ${cameraSelect.length + 1}`;
+                    cameraSelect.appendChild(opt);
+                });
+
+                // Set initial selection to match startCamera
+                const droidCamIndex = devices.findIndex(d => d.label.toLowerCase().includes('droidcam'));
+                if (droidCamIndex !== -1) {
+                    cameraSelect.selectedIndex = droidCamIndex;
+                    await cameraManager.startCamera(devices[droidCamIndex].deviceId);
+                } else {
+                    await cameraManager.startCamera(devices[0].deviceId);
+                }
+                gestureDetector.applyMirrorEffect();
+            };
+
+            try {
+                await updateCameraList();
+
+                cameraSelect.addEventListener('change', async () => {
+                    if (cameraSelect.value) {
+                        await cameraManager.startCamera(cameraSelect.value);
+                        gestureDetector.applyMirrorEffect();
+                    }
+                });
 
                 // Set canvas size to match video
                 video.addEventListener('loadedmetadata', () => {
@@ -339,6 +374,7 @@
             } catch (err) {
                 console.error('Initialization failed:', err);
             }
+
 
 
             // UI Controls

@@ -406,16 +406,9 @@ class GestureDetector {
             yaw: yawDegrees,
             worldWristZ: worldWristZ,
             isFacingCamera: isFacingCamera,
-            handedness: (() => {
-                if (!handedness) return 'N/A';
-                const label = handedness.categoryName; // 'Left' or 'Right' (MediaPipe's view)
-                // If mirroring is active, MediaPipe's 'Left' is actually the user's physical 'Right'
-                if (this.isMirror) {
-                    return label === 'Left' ? 'Right' : 'Left';
-                }
-                return label;
-            })(),
+            handedness: handedness ? handedness.categoryName : 'N/A',
             handScale: scale,
+
 
             isPinching: this.isPinching,
             handOpen: isOpen

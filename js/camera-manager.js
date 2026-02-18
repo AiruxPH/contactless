@@ -9,15 +9,21 @@ export default class CameraManager {
 
     async getDevices() {
         try {
+            // Request permissions first to get labels
+            await navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
+                stream.getTracks().forEach(track => track.stop());
+            }).catch(e => console.warn('Permission request for labels failed:', e));
+
             const devices = await navigator.mediaDevices.enumerateDevices();
             this.videoDevices = devices.filter(device => device.kind === 'videoinput');
             console.log('Available video devices:', this.videoDevices);
 
-            // Prioritize DroidCam if found
-            const droidCamIndex = this.videoDevices.findIndex(d => d.label.toLowerCase().includes('droidcam'));
-            if (droidCamIndex !== -1 && this.currentDeviceIndex === 0) {
-                this.currentDeviceIndex = droidCamIndex;
-                console.log('DroidCam matched at index:', this.currentDeviceIndex);
+            // Prioritize DroidCam if found and not already set
+            if (this.currentDeviceIndex === 0) {
+                const droidCamIndex = this.videoDevices.findIndex(d => d.label.toLowerCase().includes('droidcam'));
+                if (droidCamIndex !== -1) {
+                    this.currentDeviceIndex = droidCamIndex;
+                }
             }
             return this.videoDevices;
         } catch (err) {
@@ -25,6 +31,7 @@ export default class CameraManager {
             return [];
         }
     }
+
 
     async startCamera(deviceId) {
         console.log('Starting camera with deviceId:', deviceId);

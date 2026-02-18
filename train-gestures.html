@@ -158,12 +158,19 @@
             </div>
 
             <div id="status-overlay"
-                style="position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); color: white; padding: 10px; border-radius: 4px; pointer-events: none;">
+                style="position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); color: white; padding: 10px; border-radius: 4px; z-index: 10;">
+                <div style="margin-bottom: 8px;">
+                    <select id="camera-select"
+                        style="background: #333; color: white; border: 1px solid #555; padding: 4px; border-radius: 4px; width: 100%; font-size: 0.85em;">
+                        <option value="">Loading Cameras...</option>
+                    </select>
+                </div>
                 <div>Hand: <span id="hand-status">Initializing...</span></div>
                 <div>Last Gesture: <span id="last-gesture">None</span></div>
                 <div id="recording-indicator"
                     style="display: none; color: #ff4444; font-weight: bold; margin-top: 5px;">🔴 RECORDING...</div>
             </div>
+
         </div>
     </div>
 
@@ -200,11 +207,45 @@
                 handStatus.textContent = 'Camera Ready';
             });
 
-            // Start camera
-            await cameraManager.getDevices();
-            if (cameraManager.videoDevices.length > 0) {
-                await cameraManager.startCamera(cameraManager.videoDevices[0].deviceId);
+            // Camera Selection Logic
+            const cameraSelect = document.getElementById('camera-select');
+
+            async function updateCameraList() {
+                const devices = await cameraManager.getDevices();
+                cameraSelect.innerHTML = '';
+
+                if (devices.length === 0) {
+                    const opt = document.createElement('option');
+                    opt.textContent = 'No cameras found';
+                    cameraSelect.appendChild(opt);
+                    return;
+                }
+
+                devices.forEach(device => {
+                    const opt = document.createElement('option');
+                    opt.value = device.deviceId;
+                    opt.textContent = device.label || `Camera ${cameraSelect.length + 1}`;
+                    cameraSelect.appendChild(opt);
+                });
+
+                // Auto-select DroidCam if present
+                const droidCamIndex = devices.findIndex(d => d.label.toLowerCase().includes('droidcam'));
+                const targetDeviceId = droidCamIndex !== -1 ? devices[droidCamIndex].deviceId : devices[0].deviceId;
+
+                if (droidCamIndex !== -1) cameraSelect.selectedIndex = droidCamIndex;
+
+                await cameraManager.startCamera(targetDeviceId);
             }
+
+            cameraSelect.addEventListener('change', async () => {
+                if (cameraSelect.value) {
+                    await cameraManager.startCamera(cameraSelect.value);
+                }
+            });
+
+            // Start camera
+            await updateCameraList();
+
 
             // Real-time feedback
             window.addEventListener('handGesture', (e) => {
