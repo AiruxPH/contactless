@@ -11,6 +11,7 @@ export default class MouseController {
 
         this.isDown = false;
         this.isDragging = false;
+        this.isPinchingZoom = false; // Track pinch state for zoom visuals
 
         // Physics
         this.smoothingFactor = 0.2; // 0.2 = heavy smoothing
@@ -54,11 +55,21 @@ export default class MouseController {
     }
 
     handleGesture(gesture) {
-        if (gesture === 'pinch-start') {
-            this.startInteraction();
+        if (gesture === 'pinky-click') {
+            this.handlePinkyClick();
+        } else if (gesture === 'pinch-start') {
+            this.isPinchingZoom = true;
         } else if (gesture === 'pinch-end') {
-            this.endInteraction();
+            this.isPinchingZoom = false;
         }
+    }
+
+    handlePinkyClick() {
+        // Trigger a complete click cycle
+        this.startInteraction();
+        setTimeout(() => {
+            this.endInteraction();
+        }, 150); // Standard click duration
     }
 
     startInteraction() {
@@ -178,8 +189,25 @@ export default class MouseController {
             // 5. Visual Polish
             const pinchStrength = Math.max(0, 1 - ((this.currentPinchDistance || 1) * 2));
             const glowSize = 10 + (pinchStrength * 20);
-            const glowColor = this.isDown ? 'rgba(0, 255, 0, 0.8)' : `rgba(0, 242, 254, ${0.4 + pinchStrength * 0.6})`;
+
+            // User Spec: Unique Green cue for Pinky Click, Cyan for Zoom
+            let glowColor;
+            if (this.isDown) {
+                glowColor = 'rgba(0, 255, 0, 1)'; // Solid Green for Click
+                this.cursor.classList.add('clicking');
+            } else {
+                this.cursor.classList.remove('clicking');
+                if (this.isPinchingZoom) {
+                    glowColor = `rgba(0, 242, 254, ${0.4 + pinchStrength * 0.6})`; // Cyan for Zoom
+                    this.cursor.classList.add('pinching');
+                } else {
+                    glowColor = 'rgba(0, 242, 254, 0.3)'; // Dim Cyan hover
+                    this.cursor.classList.remove('pinching');
+                }
+            }
+
             this.cursor.style.boxShadow = `0 0 ${glowSize}px ${glowColor}`;
+            this.cursor.style.backgroundColor = this.isDown ? '#00FF00' : 'transparent'; // Turn green on click
 
             this.cursor.style.transform = magnetized ? 'translate(-50%, -50%) scale(1.2)' : 'translate(-50%, -50%) scale(1.0)';
         }

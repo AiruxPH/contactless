@@ -9,6 +9,7 @@ class GestureDetector {
         this.lastPalmAngle = null; // Track palm rotation angle
         this.lastFingerPositions = null; // Track finger positions for flick detection
         this.isPinching = false; // Track pinch state
+        this.isPinkyTap = false; // Track pinky tap state
         this.gestureCallbacks = [];
         this.lastGestureTime = 0;
         this.gestureCooldown = 600; // ms between gestures (reduced for better responsiveness)
@@ -350,7 +351,7 @@ class GestureDetector {
             this.lastGestureTime = now;
         }
 
-        // PINCH DETECTION (Always keep state updated)
+        // PINCH DETECTION (Zoom metric calculation)
         const pinchThreshold = 0.4;
         if (rawPinchDistance < pinchThreshold) {
             if (!this.isPinching) {
@@ -360,6 +361,24 @@ class GestureDetector {
         } else if (this.isPinching) {
             this.isPinching = false;
             this.emitGesture('pinch-end');
+        }
+
+        // PINKY CLICK DETECTION (Reserved for clicking)
+        // Distance from Pinky Tip (20) to Pinky MCP (17) 
+        const pinkyTip = landmarks[20];
+        const pinkyMCP = landmarks[17];
+        const pinkyDistance = this.getNormalizedDistance(pinkyTip, pinkyMCP, scale);
+
+        // Normalized threshold: 0.5 (means tip is close to palm/mcp)
+        const pinkyClickThreshold = 0.5;
+
+        if (pinkyDistance < pinkyClickThreshold) {
+            if (!this.isPinkyTap) {
+                this.isPinkyTap = true;
+                this.emitGesture('pinky-click');
+            }
+        } else {
+            this.isPinkyTap = false;
         }
 
         this.lastHandPosition = currentPosition;

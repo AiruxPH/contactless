@@ -330,4 +330,13 @@ html {
     background: #00f2fe;
     width: 15px;
     height: 15px;
+    border: 2px solid #fff;
+}
+
+#hand-cursor.clicking {
+    background: #00FF00 !important;
+    border: 2px solid #00FF00 !important;
+    box-shadow: 0 0 30px rgba(0, 255, 0, 0.8) !important;
+    width: 25px;
+    height: 25px;
 }
