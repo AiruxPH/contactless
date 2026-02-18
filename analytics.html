@@ -8,8 +8,8 @@
     <link rel="stylesheet" href="css/style.css">
     <style>
         body {
-            background: #0f172a;
-            color: #f8fafc;
+            background: #f8fafc;
+            color: #1e293b;
             font-family: 'Inter', sans-serif;
             margin: 0;
             display: flex;
@@ -45,20 +45,20 @@
         /* Right: Data Pane */
         .data-pane {
             width: 450px;
-            background: #1e293b;
+            background: #fff;
             padding: 20px;
             display: flex;
             flex-direction: column;
             gap: 20px;
             overflow-y: auto;
-            border-left: 1px solid #334155;
+            border-left: 1px solid #e2e8f0;
         }
 
         .card {
-            background: #0f172a;
+            background: #f8fafc;
             padding: 15px;
             border-radius: 12px;
-            border: 1px solid #334155;
+            border: 1px solid #e2e8f0;
         }
 
         .card h3 {
@@ -122,31 +122,33 @@
             overflow-y: auto;
             font-size: 0.85em;
             font-family: monospace;
-            background: #020617;
+            background: #f1f5f9;
             padding: 10px;
             border-radius: 8px;
             display: flex;
             flex-direction: column-reverse;
+            border: 1px solid #e2e8f0;
         }
 
         .log-entry {
             margin-bottom: 4px;
-            border-bottom: 1px solid #1e293b;
+            border-bottom: 1px solid #e2e8f0;
             padding-bottom: 2px;
         }
 
         .log-time {
-            color: #475569;
+            color: #64748b;
             margin-right: 8px;
         }
 
         .log-name {
-            color: #f472b6;
+            color: #d946ef;
+            /* Magenta for visibility on light */
             font-weight: bold;
         }
 
         .log-data {
-            color: #94a3b8;
+            color: #475569;
         }
 
         .btn-group {
@@ -156,8 +158,8 @@
         }
 
         button {
-            background: #334155;
-            color: #fff;
+            background: #e2e8f0;
+            color: #334155;
             border: none;
             padding: 8px 12px;
             border-radius: 6px;
@@ -167,21 +169,62 @@
         }
 
         button:hover {
-            background: #475569;
+            background: #cbd5e1;
         }
 
         button.active {
             background: #38bdf8;
-            color: #0f172a;
+            color: #fff;
             font-weight: bold;
         }
 
         .badge {
-            background: #1e293b;
-            color: #4ade80;
+            background: #f1f5f9;
+            color: #059669;
             padding: 2px 6px;
             border-radius: 4px;
             font-size: 0.8em;
+        }
+
+        /* Responsive Dashboard */
+        @media (max-width: 1024px) {
+            #analytics-container {
+                flex-direction: column;
+                overflow-y: auto;
+            }
+
+            .video-pane {
+                height: 400px;
+                border-right: none;
+                border-bottom: 1px solid #e2e8f0;
+                flex: none;
+            }
+
+            .data-pane {
+                width: 100%;
+                border-left: none;
+                flex: none;
+                height: auto;
+            }
+
+            .data-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 640px) {
+            .video-pane {
+                height: 300px;
+            }
+
+            .data-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .btn-group button {
+                font-size: 0.8em;
+                padding: 6px 8px;
+            }
         }
     </style>
 </head>
