@@ -42,7 +42,23 @@ export default class AnalyticsController {
 
 
     handleFrame(data) {
-        if (!data || !data.landmarks) return;
+        if (!data || !data.landmarks) {
+            // Reset visuals when hand is lost
+            this.smoothedSpeed = 0;
+            if (this.elements.speed) this.elements.speed.textContent = "0.0 px/s";
+            if (this.elements.facing) {
+                this.elements.facing.textContent = "NOT DETECTED";
+                this.elements.facing.style.color = "#64748b";
+            }
+            if (this.elements.pitch) this.elements.pitch.textContent = "0.0°";
+            if (this.elements.yaw) this.elements.yaw.textContent = "0.0°";
+            if (this.elements.handedness) this.elements.handedness.textContent = "N/A";
+            if (this.elements.wristZ) this.elements.wristZ.textContent = "0.0000";
+            if (this.elements.pinch) this.elements.pinch.textContent = "0.000";
+            if (this.elements.scale) this.elements.scale.textContent = "0.000";
+            if (this.elements.table) this.elements.table.innerHTML = "";
+            return;
+        }
 
         const now = Date.now();
         const dt = (now - this.lastFrameTime) / 1000;

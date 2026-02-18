@@ -158,9 +158,17 @@ class GestureDetector {
                         }
 
                         // Notify listeners that no hand is detected
+                        const nullFrame = {
+                            landmarks: null,
+                            worldLandmarks: null,
+                            handDetected: false,
+                            isPaused: this.isPaused
+                        };
+
                         if (this.onHandFrame) {
-                            this.onHandFrame(null);
+                            this.onHandFrame(nullFrame);
                         }
+                        this.emitHandFrame(nullFrame);
                     }
                 }
             } catch (error) {
@@ -277,14 +285,8 @@ class GestureDetector {
         ctx.stroke();
 
 
-        // Palm Center Calculation and Drawing
-        // User Spec: Midpoint between wrist [0] and middle finger MCP [9]
-        const middleMCP = landmarks[9];
-        const wrist = landmarks[0];
-        const palmCenter = {
-            x: (wrist.x + middleMCP.x) / 2,
-            y: (wrist.y + middleMCP.y) / 2
-        };
+        // Palm Center Drawing (Logic now moved to detectGesture)
+        const palmCenter = this.currentPalmCenter;
 
 
         // Draw Palm Center as a larger red dot
@@ -398,6 +400,11 @@ class GestureDetector {
         const middleFingerBase = landmarks[9];
 
         // 1. Calculate Core Metrics
+        this.currentPalmCenter = {
+            x: (wrist.x + middleFingerBase.x) / 2,
+            y: (wrist.y + middleFingerBase.y) / 2
+        };
+
         const scale = this.getHandScale(landmarks);
         const rawPinchDistance = this.getNormalizedDistance(landmarks[4], landmarks[8], scale);
         const isOpen = this.isHandOpen(landmarks);
