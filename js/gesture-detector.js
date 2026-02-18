@@ -13,8 +13,10 @@ class GestureDetector {
         this.gestureCallbacks = [];
         this.isMirror = true;
         this.showLandmarkIndices = false; // New property for analytics
+        this.showGimbalLines = false; // Toggle for orientation debugging
         this.gestureCooldown = 400; // ms between gestures (reduced for better responsiveness)
         this.enableVisualCursor = true; // Default to true, can be disabled by controllers
+
 
         this.init();
     }
@@ -195,11 +197,20 @@ class GestureDetector {
             ctx.fill();
 
             if (this.showLandmarkIndices) {
+                ctx.save();
+                ctx.translate(x + 5, y + 5);
+                // If the entire canvas is mirrored by CSS, we must pre-mirror the text 
+                // so it looks normal after the CSS transform.
+                if (this.isMirror) {
+                    ctx.scale(-1, 1);
+                }
                 ctx.fillStyle = '#FFFFFF';
-                ctx.font = '10px Arial';
-                ctx.fillText(index, x + 5, y + 5);
+                ctx.font = 'bold 12px Arial';
+                ctx.fillText(index, 0, 0);
+                ctx.restore();
                 ctx.fillStyle = '#FF0000'; // Reset for next dot
             }
+
         });
 
 
@@ -244,7 +255,35 @@ class GestureDetector {
         ctx.lineWidth = 2;
         ctx.stroke();
 
+        // Draw Debug Gimbal Vectors (Blue Lines)
+        if (this.showGimbalLines) {
+            ctx.strokeStyle = '#3b82f6'; // Blue
+            ctx.lineWidth = 4;
+
+            // 1. Palm Center to Thumb MCP [2]
+            const thumbMCP = landmarks[2];
+            ctx.beginPath();
+            ctx.moveTo(palmCenter.x * this.canvas.width, palmCenter.y * this.canvas.height);
+            ctx.lineTo(thumbMCP.x * this.canvas.width, thumbMCP.y * this.canvas.height);
+            ctx.stroke();
+
+            // 2. Yaw Vector: Pinky MCP [17] to Index MCP [5]
+            const indexMCP = landmarks[5];
+            const pinkyMCP = landmarks[17];
+            ctx.beginPath();
+            ctx.moveTo(indexMCP.x * this.canvas.width, indexMCP.y * this.canvas.height);
+            ctx.lineTo(pinkyMCP.x * this.canvas.width, pinkyMCP.y * this.canvas.height);
+            ctx.stroke();
+
+            // 3. Pitch Vector: Middle MCP [9] to Wrist [0]
+            ctx.beginPath();
+            ctx.moveTo(middleMCP.x * this.canvas.width, middleMCP.y * this.canvas.height);
+            ctx.lineTo(wrist.x * this.canvas.width, wrist.y * this.canvas.height);
+            ctx.stroke();
+        }
+
         this.currentPalmCenter = palmCenter;
+
     }
 
     isHandOpen(landmarks) {

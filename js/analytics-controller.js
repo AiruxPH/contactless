@@ -16,7 +16,8 @@ export default class AnalyticsController {
 
             scale: document.getElementById('stat-scale'),
             log: document.getElementById('gesture-log'),
-            table: document.getElementById('landmark-table')
+            table: document.getElementById('landmark-table'),
+            gimbalToggle: document.getElementById('toggle-gimbal')
         };
 
 
@@ -26,7 +27,14 @@ export default class AnalyticsController {
     init() {
         window.addEventListener('handFrame', (e) => this.handleFrame(e.detail));
         window.addEventListener('handGesture', (e) => this.handleGesture(e.detail));
+
+        if (this.elements.gimbalToggle) {
+            this.elements.gimbalToggle.addEventListener('change', (e) => {
+                this.gestureDetector.showGimbalLines = e.target.checked;
+            });
+        }
     }
+
 
 
     handleFrame(data) {
