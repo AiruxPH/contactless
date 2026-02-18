@@ -189,17 +189,14 @@ class GestureDetector {
 
 
         // Palm Center Calculation and Drawing
-        // User Spec: Midpoint between wrist [0] and MCPs [5, 9, 13, 17]
-        const mcps = [landmarks[5], landmarks[9], landmarks[13], landmarks[17]];
-        const avgMcp = {
-            x: mcps.reduce((sum, p) => sum + p.x, 0) / 4,
-            y: mcps.reduce((sum, p) => sum + p.y, 0) / 4
-        };
+        // User Spec: Midpoint between wrist [0] and middle finger MCP [9]
+        const middleMCP = landmarks[9];
         const wrist = landmarks[0];
         const palmCenter = {
-            x: (wrist.x + avgMcp.x) / 2,
-            y: (wrist.y + avgMcp.y) / 2
+            x: (wrist.x + middleMCP.x) / 2,
+            y: (wrist.y + middleMCP.y) / 2
         };
+
 
         // Draw Palm Center as a larger red dot
         ctx.fillStyle = '#FF0000';
