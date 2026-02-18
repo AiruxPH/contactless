@@ -411,10 +411,9 @@ class GestureDetector {
             handedness: handedness ? handedness.categoryName : 'N/A',
             handScale: scale,
             isMiddlePinch: this.isMiddlePinch,
-
-
             isPinching: this.isPinching,
-            handOpen: isOpen
+            handOpen: isOpen,
+            handDetected: true
         });
 
 

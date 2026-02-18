@@ -62,9 +62,8 @@
             <h4>Quick Guide</h4>
             <ul>
                 <li><strong>🖐️ Palm Tilt:</strong> Continuous Drift</li>
-                <li><strong>☝️ Finger Flick:</strong> Power Scroll</li>
+                <li><strong>☝️ Finger Flick:</strong> Snap-Flick Fling</li>
                 <li><strong>🤌 Pinky Click:</strong> Execute Action</li>
-                <li><strong>🤲 Palm Pivot:</strong> 2D Navigation</li>
                 <li><strong>✊ Close Fist:</strong> Pause Detection</li>
             </ul>
         </div>
@@ -146,17 +145,15 @@
             <div class="instructions">
                 <h4>How to Use:</h4>
                 <ul>
-                    <li><strong>✋ Keep Hand Open:</strong> Gestures only work with an open hand</li>
-                    <li><strong>Index Flick (Up/Down):</strong> Flick fingers to scroll. Faster flick = more distance.
-                    </li>
-                    <li><strong>Palm Tilt (Up/Down):</strong> Tilt and **HOLD** your palm to smoothly auto-scroll.</li>
-                    <li><strong>Swipe Left/Right:</strong> Move hand horizontally to **SNAP** to the next/prev section.
-                    </li>
-                    <li><strong>🤌 Pinch (Thumb+Index):</strong> Contact thumb and index to **CLICK** the screen center.
-                    </li>
+                    <li><strong>✋ Keep Hand Open:</strong> Detection is active when hand is open</li>
+                    <li><strong>Palm Tilt (Joystick):</strong> Tilt your hand to "drive" the page. Returns to deadzone
+                        (12°) to stop.</li>
+                    <li><strong>Finger Flick (Snap):</strong> Flick fingers to "fling" the page. Simulates a
+                        high-momentum swipe.</li>
+                    <li><strong>🤌 Pinky Click:</strong> Tap your pinky to click elements at the cursor.</li>
                 </ul>
-                <p><strong>💡 Tips:</strong> Use small flicks for precise reading and palm tilts for browsing long
-                    pages. Close your fist to pause detection.</p>
+                <p><strong>💡 Tips:</strong> Use small tilts for continuous reading and flicks for fast page turns. The
+                    system glides to a smooth stop.</p>
             </div>
             <p>This is a demonstration of contactless navigation using hand gestures. The system uses MediaPipe Hand
                 Landmarker to detect your hand movements and translate them into navigation actions.</p>

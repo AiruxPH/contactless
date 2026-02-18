@@ -1,52 +1,45 @@
 class NavigationController {
     constructor(gestureDetector) {
         this.gestureDetector = gestureDetector;
-        this.scrollAmount = 300; // pixels to scroll
         this.currentGesture = 'None';
         this.lastAction = 'None';
         this.handDetected = false;
-        this.isMiddlePinch = false;
+
+        // Physics State
+        this.velocityX = 0;
+        this.velocityY = 0;
+        this.friction = 0.92;
+        this.activeAxis = null; // 'pitch', 'yaw', or null
+
+        // Intensity & Direction
+        this.pitchIntensity = 0;
+        this.yawIntensity = 0;
+        this.pitchDirection = 0;
+        this.yawDirection = 0;
 
         // Mappings
         this.mappings = this.loadMappings();
         this.defaultMappings = {
-            'finger-flick-up': 'scroll_up',
-            'finger-flick-down': 'scroll_down',
+            'finger-flick-up': 'scroll_down',
+            'finger-flick-down': 'scroll_up',
             'finger-flick-left': 'scroll_right',
             'finger-flick-right': 'scroll_left',
-            'tilt-up': 'scroll_up',
-            'tilt-down': 'scroll_down',
-            'tilt-left': 'scroll_right',
-            'tilt-right': 'scroll_left',
             'pinky-click': 'click'
         };
 
-
-        // Continuous scrolling state
-        this.scrollInterval = null;
-        this.activeContinuousGesture = null;
-        this.currentContinuousIntensity = 1;
-
         this.init();
+        this.startPhysicsLoop();
     }
 
     loadMappings() {
-        // Invert the stored mapping (Action -> [Gestures] or Action -> Gesture) 
-        // to (Gesture -> Action) for O(1) lookup
         const saved = localStorage.getItem('gestureMappings');
         if (!saved) return {};
-
         const actionToGestures = JSON.parse(saved);
         const gestureToAction = {};
-
         for (const [action, gestures] of Object.entries(actionToGestures)) {
-            // Handle both legacy (string) and new (array) formats
             if (Array.isArray(gestures)) {
-                gestures.forEach(gesture => {
-                    gestureToAction[gesture] = action;
-                });
+                gestures.forEach(gesture => { gestureToAction[gesture] = action; });
             } else {
-                // Legacy single gesture support (migration)
                 gestureToAction[gestures] = action;
             }
         }
@@ -54,299 +47,179 @@ class NavigationController {
     }
 
     init() {
-        // Listen for gestures
         this.gestureDetector.onGesture((gesture, data) => {
             this.handleGesture(gesture, data);
         });
 
-        // Listen for detector status
         window.addEventListener('detectorStatus', (e) => {
             const { type, data } = e.detail;
             if (type === 'handDetected') {
                 this.handDetected = data;
-                if (!data) {
-                    this.stopContinuousScroll();
-                }
+                if (!data) this.resetPhysics();
                 this.updateStatus();
             }
         });
 
-
-        // Listen for mapping updates
         window.addEventListener('mappingUpdated', () => {
             this.mappings = this.loadMappings();
         });
 
-        // Listen for continuous frame data to update tilt intensity
+        // "Joystick Drift" - Continuous Tracking & Axis Locking
         window.addEventListener('handFrame', (e) => {
-            const { isMiddlePinch } = e.detail;
-            this.isMiddlePinch = isMiddlePinch;
+            const { pitch, yaw, handDetected, handOpen, isFacingCamera } = e.detail;
 
-            if (this.activeContinuousGesture && this.activeContinuousGesture.includes('tilt')) {
-                const { pitch, yaw } = e.detail;
+            if (!handDetected) {
+                this.activeAxis = null;
+                this.pitchIntensity = 0;
+                this.yawIntensity = 0;
+                return;
+            }
 
-                // TILT DEAD-ZONE & 2D Logic
-                // Pitch drives Vertical, Yaw drives Horizontal
-                const isVertical = this.activeContinuousGesture.includes('up') || this.activeContinuousGesture.includes('down');
-                const angle = isVertical ? pitch : yaw;
-                const deadzone = 12; // Degrees (from Hand Gimbal System)
+            const deadzone = 12;
+            const absPitch = Math.abs(pitch);
+            const absYaw = Math.abs(yaw);
 
-                if (Math.abs(angle) < deadzone) {
-                    this.stopContinuousScroll();
-                    return;
+            // Axis Reset in Deadzone
+            if (absPitch < deadzone && absYaw < deadzone) {
+                this.activeAxis = null;
+                this.pitchIntensity = 0;
+                this.yawIntensity = 0;
+                return;
+            }
+
+            // Apply dominant axis logic only when starting from neutral
+            if (this.activeAxis === null) {
+                if (absPitch > absYaw + 5) {
+                    this.activeAxis = 'pitch';
+                } else if (absYaw > absPitch + 5) {
+                    this.activeAxis = 'yaw';
                 }
+            }
 
-                // Update intensity dynamically (normalized)
-                const maxAngle = 55; // Sync with Facing Guard
-                const intensity = (Math.abs(angle) - deadzone) / (maxAngle - deadzone);
-                this.currentContinuousIntensity = Math.min(Math.max(intensity, 0.2), 3.0);
+            // Continuous Acceleration (Joystick Drift)
+            const maxAngle = 55;
+            const powerFactor = (1 - this.friction); // Steady state calibration
 
+            if (this.activeAxis === 'pitch' && handOpen && isFacingCamera) {
+                this.pitchIntensity = (absPitch - deadzone) / (maxAngle - deadzone);
+                this.pitchIntensity = Math.min(Math.max(this.pitchIntensity, 0), 3.0);
+                this.pitchDirection = pitch > 0 ? 1 : -1;
+
+                const accel = (18 * Math.pow(this.pitchIntensity, 1.5)) * powerFactor;
+                this.velocityY += accel * this.pitchDirection;
+                this.lastAction = 'DRIVING ↑↓';
+            } else if (this.activeAxis === 'yaw' && handOpen && isFacingCamera) {
+                this.yawIntensity = (absYaw - deadzone) / (maxAngle - deadzone);
+                this.yawIntensity = Math.min(Math.max(this.yawIntensity, 0), 3.0);
+                this.yawDirection = yaw > 0 ? 1 : -1;
+
+                const accel = (18 * Math.pow(this.yawIntensity, 1.5)) * powerFactor;
+                this.velocityX += accel * this.yawDirection;
+                this.lastAction = 'DRIVING ←→';
             }
         });
 
-
-
         this.updateStatus();
     }
 
-    getActionForGesture(gesture) {
-        // 1. Check Custom Mappings first
-        if (this.mappings[gesture]) return this.mappings[gesture];
+    startPhysicsLoop() {
+        const loop = () => {
+            // 1. Friction Decay
+            this.velocityX *= this.friction;
+            this.velocityY *= this.friction;
 
-        // 2. Check Defaults
-        return this.defaultMappings[gesture] || null;
+            // 2. GLIDING detection (when hand is neutral or lost but still moving)
+            const speed = Math.sqrt(this.velocityX * this.velocityX + this.velocityY * this.velocityY);
+            if (this.activeAxis === null && speed > 2) {
+                this.lastAction = 'GLIDING...';
+            } else if (this.activeAxis === null && speed <= 2 && this.lastAction.includes('GLIDING')) {
+                this.lastAction = 'Stationary';
+            }
+
+            // 3. Application of Velocity
+            if (speed > 0.1) {
+                const gallery = document.querySelector('.gallery-stage');
+                if (gallery && Math.abs(this.velocityX) > 0.1) {
+                    gallery.scrollBy({ left: this.velocityX, behavior: 'auto' });
+                } else {
+                    window.scrollBy({ left: this.velocityX, top: this.velocityY, behavior: 'auto' });
+                }
+                this.updateStatus();
+            }
+
+            requestAnimationFrame(loop);
+        };
+        requestAnimationFrame(loop);
+    }
+
+    resetPhysics() {
+        this.activeAxis = null;
+        this.pitchIntensity = 0;
+        this.yawIntensity = 0;
     }
 
     handleGesture(gesture, data) {
-        this.currentGesture = this.formatGestureName(gesture);
-        this.updateStatus();
+        if (gesture.includes('tilt')) return; // Tilts handled by Frame loop
 
+        this.currentGesture = this.formatGestureName(gesture);
         const action = this.getActionForGesture(gesture);
 
-        // Handle continuous gesture lifecycle
-        if (gesture.includes('tilt')) {
-            // Special handling for tilts as they are continuous
-            // Extract angle data if available for variable speed (Unit Sync: Degrees)
-            const deadzone = 12;
-            const maxAngle = 55;
-            let intensity = 1;
-
-            if (data && typeof data.angle === 'number') {
-                const angle = Math.abs(data.angle);
-                intensity = (angle - deadzone) / (maxAngle - deadzone);
-                intensity = Math.min(Math.max(intensity, 0.2), 3.0);
-            }
-            this.startContinuousScroll(gesture, intensity);
-        } else if (gesture === 'pinky-click') {
+        if (gesture === 'pinky-click') {
             this.handleClick();
-        } else if (gesture === 'pinch-start') {
-            // Pinch no longer clicks, purely for cursor visuals or zoom
-        } else {
-
-            // Impulse gestures (swipes, flicks)
-            this.stopContinuousScroll();
-
-            // Calculate intensity for flicks (Proportional Scrolling)
-            // User Spec: Momentum Smoothing
-            let intensity = 1;
-            if (data && data.velocity) {
-                // Exponential mapping for smoother slow-starts and punchy fast-flicks
-                // Map velocity (1.5 - 8.0) to intensity (1.0 - 5.0)
-                const baseVel = 1.5;
-                const normalizedVel = Math.max(0, data.velocity - baseVel);
-                intensity = 1 + Math.pow(normalizedVel / 2, 1.2);
-                intensity = Math.min(intensity, 6); // Cap for safety
-            }
-
-
-            // Execute Action
-            if (action) {
-                this.executeAction(action, intensity);
-            } else {
-                console.log('No action mapped for:', gesture);
-            }
+        } else if (action && action.startsWith('scroll')) {
+            // Snap-Flick (Impulse Injection)
+            this.injectFlickImpulse(action, data);
+            this.showFeedback('FLICK ⚡');
         }
 
-        // Reset gesture display after a delay
         setTimeout(() => {
             this.currentGesture = 'None';
             this.updateStatus();
         }, 1000);
     }
 
-    executeAction(action, intensity) {
+    injectFlickImpulse(action, data) {
+        // Recalibrate Impulse: Injection / (1 - friction) = Total Distance
+        // 48 / 0.08 = 600px Total Glide
+        const verticalPower = 600 * (1 - this.friction);
+        const horizontalPower = (window.innerWidth * 0.8) * (1 - this.friction);
+
         switch (action) {
             case 'scroll_up':
-                this.scrollUp(intensity);
+                this.velocityY -= verticalPower;
+                this.lastAction = 'FLICK Up';
                 break;
             case 'scroll_down':
-                this.scrollDown(intensity);
-                break;
-            case 'click':
-                this.handleClick();
-                break;
-            case 'scroll_right':
-                this.scrollRight(intensity);
+                this.velocityY += verticalPower;
+                this.lastAction = 'FLICK Down';
                 break;
             case 'scroll_left':
-                this.scrollLeft(intensity);
+                this.velocityX -= this.isGalleryMode() ? horizontalPower : verticalPower;
+                this.lastAction = 'FLICK Left';
                 break;
-            case 'zoom_in':
-                this.zoomIn();
-                break;
-            case 'zoom_out':
-                this.zoomOut();
+            case 'scroll_right':
+                this.velocityX += this.isGalleryMode() ? horizontalPower : verticalPower;
+                this.lastAction = 'FLICK Right';
                 break;
         }
+    }
+
+    getActionForGesture(gesture) {
+        return this.mappings[gesture] || this.defaultMappings[gesture] || null;
     }
 
     isGalleryMode() {
-        return document.querySelector('.gallery-stage') || window.location.pathname.endsWith('gallery.html');
-    }
-
-    // Zoom Stubs (for now)
-    zoomIn() {
-        document.body.style.zoom = (parseFloat(document.body.style.zoom || 1) + 0.1);
-        this.lastAction = 'Zoom On';
-        this.updateStatus();
-    }
-
-    zoomOut() {
-        document.body.style.zoom = (parseFloat(document.body.style.zoom || 1) - 0.1);
-        this.lastAction = 'Zoom Out';
-        this.updateStatus();
-    }
-
-    handleSubmit() {
-        // Placeholder
-    }
-
-    scrollUp(intensity = 1) {
-        window.scrollBy({
-            top: -this.scrollAmount * intensity,
-            behavior: 'smooth'
-        });
-        this.lastAction = `Scrolled Up (${intensity.toFixed(1)}x)`;
-        this.showFeedback('↑ Scrolling Up');
-        this.updateStatus();
-    }
-
-    scrollDown(intensity = 1) {
-        window.scrollBy({
-            top: this.scrollAmount * intensity,
-            behavior: 'smooth'
-        });
-        this.lastAction = `Scrolled Down (${intensity.toFixed(1)}x)`;
-        this.showFeedback('↓ Scrolling Down');
-        this.updateStatus();
-    }
-
-    scrollLeft(intensity = 1) {
-        const gallery = document.querySelector('.gallery-stage');
-
-        // "Page Turn" Physics: Simulating a larger, smoother movement
-        const pageTurnAmount = window.innerWidth * 0.85;
-        const isStandaloneGallery = document.body.style.overflow === 'hidden' ||
-            window.location.pathname.endsWith('gallery.html');
-
-        const scrollAmount = isStandaloneGallery ? pageTurnAmount : (this.scrollAmount * 2.5);
-
-        if (gallery) {
-            gallery.scrollBy({
-                left: -scrollAmount * intensity,
-                behavior: 'smooth'
-            });
-        } else {
-            window.scrollBy({
-                left: -scrollAmount * intensity,
-                behavior: 'smooth'
-            });
-        }
-        this.lastAction = `Page Back (${intensity.toFixed(1)}x)`;
-        this.showFeedback('⏮ Page Back');
-        this.updateStatus();
-    }
-
-    scrollRight(intensity = 1) {
-        const gallery = document.querySelector('.gallery-stage');
-
-        const pageTurnAmount = window.innerWidth * 0.85;
-        const isStandaloneGallery = document.body.style.overflow === 'hidden' ||
-            window.location.pathname.endsWith('gallery.html');
-
-        const scrollAmount = isStandaloneGallery ? pageTurnAmount : (this.scrollAmount * 2.5);
-
-        if (gallery) {
-            gallery.scrollBy({
-                left: scrollAmount * intensity,
-                behavior: 'smooth'
-            });
-        } else {
-            window.scrollBy({
-                left: scrollAmount * intensity,
-                behavior: 'smooth'
-            });
-        }
-        this.lastAction = `Page Next (${intensity.toFixed(1)}x)`;
-        this.showFeedback('Page Next ⏭');
-        this.updateStatus();
-    }
-
-    startContinuousScroll(gesture, intensity = 1) {
-        if (this.activeContinuousGesture === gesture) {
-            // Update intensity if already running
-            this.currentContinuousIntensity = intensity;
-            return;
-        }
-
-        this.stopContinuousScroll();
-        this.activeContinuousGesture = gesture;
-        this.currentContinuousIntensity = intensity;
-
-        const isVertical = gesture.includes('up') || gesture.includes('down');
-        const direction = (gesture.includes('down') || gesture.includes('right')) ? 1 : -1;
-
-        this.scrollInterval = setInterval(() => {
-            // Adaptive Speed: 18 * Math.pow(intensity, 1.5) curve
-            const scrollStep = 18 * Math.pow(this.currentContinuousIntensity, 1.5) * direction;
-
-            if (isVertical) {
-                window.scrollBy(0, scrollStep);
-            } else {
-                const gallery = document.querySelector('.gallery-stage');
-                if (gallery) {
-                    gallery.scrollBy({ left: scrollStep, behavior: 'auto' });
-                } else {
-                    window.scrollBy(scrollStep, 0);
-                }
-            }
-
-            const directionName = this.formatGestureName(gesture.replace('tilt-', ''));
-            const speedPct = Math.round(this.currentContinuousIntensity * 100);
-            this.lastAction = `Continuous ${directionName} (${speedPct}%)`;
-            this.updateStatus();
-        }, 16); // ~60fps
-    }
-
-    stopContinuousScroll() {
-        if (this.scrollInterval) {
-            clearInterval(this.scrollInterval);
-            this.scrollInterval = null;
-            this.activeContinuousGesture = null;
-        }
+        return !!document.querySelector('.gallery-stage');
     }
 
     handleClick() {
-        // Use coordinates from the specialized MouseController if it exists (global sync)
         let x = window.innerWidth / 2;
         let y = window.innerHeight / 2;
-
         const cursor = document.getElementById('hand-cursor');
         if (cursor && cursor.style.left) {
             x = parseFloat(cursor.style.left);
             y = parseFloat(cursor.style.top);
         }
-
         const elem = document.elementFromPoint(x, y);
         if (elem) {
             this.lastAction = 'Pinky Click';
@@ -356,55 +229,35 @@ class NavigationController {
         this.updateStatus();
     }
 
-
-
     formatGestureName(gesture) {
-        return gesture.split('-').map(word =>
-            word.charAt(0).toUpperCase() + word.slice(1)
-        ).join(' ');
+        return gesture.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
     }
 
     updateStatus() {
-        // Update hand detection status
         const handStatus = document.getElementById('hand-status');
-        const handStatusItem = handStatus.closest('.status-item');
-        if (this.handDetected) {
-            handStatus.textContent = 'Detected ✓';
-            handStatus.style.color = '#4CAF50';
-            handStatusItem.classList.add('status-active');
-            handStatusItem.classList.remove('status-inactive');
-        } else {
-            handStatus.textContent = 'Not Detected';
-            handStatus.style.color = '#f44336';
-            handStatusItem.classList.add('status-inactive');
-            handStatusItem.classList.remove('status-active');
+        const hText = this.handDetected ? 'Detected ✓' : 'Not Detected';
+        if (handStatus && handStatus.textContent !== hText) {
+            handStatus.textContent = hText;
+            handStatus.style.color = this.handDetected ? '#4CAF50' : '#f44336';
         }
 
-        // The gesture detection has a cooldown period of 600ms to prevent multiple triggers from a single gesture. This makes the interaction feel more natural and controlled while remaining responsive.
-        // Update gesture
         const gestureStatus = document.getElementById('gesture-status');
-        const gestureStatusItem = gestureStatus.closest('.status-item');
-        gestureStatus.textContent = this.currentGesture;
-
-        if (this.currentGesture !== 'None') {
-            gestureStatusItem.classList.add('gesture-detected');
-        } else {
-            gestureStatusItem.classList.remove('gesture-detected');
+        if (gestureStatus && gestureStatus.textContent !== this.currentGesture) {
+            gestureStatus.textContent = this.currentGesture;
         }
 
-        // Update last action
         const actionStatus = document.getElementById('action-status');
-        actionStatus.textContent = this.lastAction;
+        if (actionStatus && actionStatus.textContent !== this.lastAction) {
+            actionStatus.textContent = this.lastAction;
+        }
     }
 
     showFeedback(message) {
         const feedback = document.getElementById('action-feedback');
+        if (!feedback) return;
         feedback.textContent = message;
         feedback.classList.add('show');
-
-        setTimeout(() => {
-            feedback.classList.remove('show');
-        }, 1500);
+        setTimeout(() => feedback.classList.remove('show'), 1500);
     }
 }
 
