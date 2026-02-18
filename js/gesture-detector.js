@@ -100,7 +100,12 @@ class GestureDetector {
                         this.drawHandLandmarks(results.landmarks[0]);
 
                         // Detect gestures
-                        this.detectGesture(results.landmarks[0]);
+                        this.detectGesture(
+                            results.landmarks[0],
+                            results.worldLandmarks ? results.worldLandmarks[0] : null,
+                            results.handedness ? results.handedness[0] : null
+                        );
+
 
                         this.emitStatus('handDetected', true);
                     } else {
@@ -285,32 +290,58 @@ class GestureDetector {
         return scale > 0 ? rawDistance / scale : 10;
     }
 
-    detectGesture(landmarks) {
+    detectGesture(landmarks, worldLandmarks, handedness) {
         const now = Date.now();
         const wrist = landmarks[0];
         const indexTip = landmarks[8];
         const middleFingerBase = landmarks[9];
 
-        // 1. Calculate Core Metrics (Always needed for tracking)
+        // 1. Calculate Core Metrics
         const scale = this.getHandScale(landmarks);
         const rawPinchDistance = this.getNormalizedDistance(landmarks[4], landmarks[8], scale);
         const isOpen = this.isHandOpen(landmarks);
 
-        // HAND GIMBAL SYSTEM (3D Orientation)
-        // User Spec: Use Palm Center as absolute median / zero-pivot
+        // HAND GIMBAL SYSTEM (3D Orientation using World Landmarks)
+        // User Spec: Use Wrist-to-Middle for Pitch, Index-to-Pinky for Yaw
+        let pitchDegrees = 0;
+        let yawDegrees = 0;
+        let isFacingCamera = true;
+        let worldWristZ = 0;
+
+        if (worldLandmarks) {
+            const wWrist = worldLandmarks[0];
+            const wMiddleMCP = worldLandmarks[9];
+            const wIndexMCP = worldLandmarks[5];
+            const wPinkyMCP = worldLandmarks[17];
+            worldWristZ = wWrist.z;
+
+            // Pitch: Vertical Vector (Wrist -> Middle MCP)
+            const pX = wMiddleMCP.x - wWrist.x;
+            const pY = wMiddleMCP.y - wWrist.y;
+            const pZ = wMiddleMCP.z - wWrist.z;
+            // atan2(depth, vertical) -> 0 is straight up, negative is towards, positive is away
+            pitchDegrees = Math.atan2(pZ, -pY) * (180 / Math.PI);
+
+            // Yaw: Horizontal Vector (Index MCP -> Pinky MCP)
+            const yX = wPinkyMCP.x - wIndexMCP.x;
+            const yY = wPinkyMCP.y - wIndexMCP.y;
+            const yZ = wPinkyMCP.z - wIndexMCP.z;
+
+            // atan2(depth, horizontal)
+            yawDegrees = Math.atan2(yZ, yX) * (180 / Math.PI);
+
+            // Handedness Correction: Mirror Yaw for Left Hand
+            const handLabel = handedness ? handedness.categoryName : 'Right';
+            if (handLabel === 'Left') {
+                yawDegrees = -yawDegrees;
+            }
+
+            // Facing Guard Thresholds
+            isFacingCamera = Math.abs(pitchDegrees) < 40 && Math.abs(yawDegrees) < 45;
+        }
+
+        // Calculate absolute palm angle for legacy 2D Tilt (Continuous Scroll fallback)
         const pCenter = this.currentPalmCenter;
-        const pitchDeltaZ = landmarks[9].z - landmarks[0].z;
-        const pitchDegrees = (pitchDeltaZ / scale) * 90;
-
-        const thumbBase = landmarks[2];
-        const yawDX = thumbBase.x - (pCenter ? pCenter.x : landmarks[0].x);
-        const yawDZ = thumbBase.z - (pCenter ? pCenter.z : landmarks[0].z);
-        const yawRaw = Math.atan2(yawDZ, yawDX);
-        const yawDegrees = (yawRaw + Math.PI / 2) * (180 / Math.PI);
-
-        const isFacingCamera = Math.abs(pitchDegrees) < 45 && Math.abs(yawDegrees) < 60;
-
-        // Calculate absolute palm angle for continuous tilt speed
         const palmDX = (pCenter ? pCenter.x : (wrist.x + middleFingerBase.x) / 2) - wrist.x;
         const palmDY = (pCenter ? pCenter.y : (wrist.y + middleFingerBase.y) / 2) - wrist.y;
         const currentAngle = Math.atan2(palmDY, palmDX);
@@ -318,6 +349,7 @@ class GestureDetector {
         let angleDiff = currentAngle - neutralAngle;
         while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
         while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+
 
 
 
@@ -331,13 +363,16 @@ class GestureDetector {
             } : null,
             pinchDistance: rawPinchDistance,
             tiltAngle: angleDiff,
-            pitch: typeof pitchDegrees !== 'undefined' ? pitchDegrees : 0,
-            yaw: typeof yawDegrees !== 'undefined' ? yawDegrees : 0,
-            isFacingCamera: typeof isFacingCamera !== 'undefined' ? isFacingCamera : true,
+            pitch: pitchDegrees,
+            yaw: yawDegrees,
+            worldWristZ: worldWristZ,
+            isFacingCamera: isFacingCamera,
+            handedness: handedness ? handedness.categoryName : 'Right',
             handScale: scale,
             isPinching: this.isPinching,
             handOpen: isOpen
         });
+
 
 
 

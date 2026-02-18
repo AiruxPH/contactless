@@ -10,7 +10,10 @@ export default class AnalyticsController {
             facing: document.getElementById('stat-facing'),
             pitch: document.getElementById('stat-pitch'),
             yaw: document.getElementById('stat-yaw'),
+            handedness: document.getElementById('stat-handedness'),
+            wristZ: document.getElementById('stat-wristz'),
             pinch: document.getElementById('stat-pinch'),
+
             scale: document.getElementById('stat-scale'),
             log: document.getElementById('gesture-log'),
             table: document.getElementById('landmark-table')
@@ -53,6 +56,9 @@ export default class AnalyticsController {
         }
         if (this.elements.pitch) this.elements.pitch.textContent = `${(data.pitch || 0).toFixed(1)}°`;
         if (this.elements.yaw) this.elements.yaw.textContent = `${(data.yaw || 0).toFixed(1)}°`;
+        if (this.elements.handedness) this.elements.handedness.textContent = data.handedness || 'N/A';
+        if (this.elements.wristZ) this.elements.wristZ.textContent = (data.worldWristZ || 0).toFixed(4);
+
 
         this.elements.pinch.textContent = (data.pinchDistance || 0).toFixed(3);
         this.elements.scale.textContent = (data.handScale || 0).toFixed(3);
