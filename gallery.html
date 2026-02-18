@@ -133,8 +133,9 @@
             <ul>
                 <li><strong>🖐️ Palm Tilt:</strong> Continuous Drift</li>
                 <li><strong>☝️ Finger Flick:</strong> Snap-Flick Fling</li>
+                <li><strong>💍 Ring Grip:</strong> Cursor Clutch (Hold)</li>
                 <li><strong>🤌 Pinky Click:</strong> Select Artwork</li>
-                <li><strong>✊ Close Fist:</strong> Stop Motion</li>
+                <li><strong>✊ Close Fist:</strong> Toggle System Pause</li>
             </ul>
         </div>
     </div>
@@ -282,6 +283,7 @@
     <script type="module">
         import GestureDetector from './js/gesture-detector.js';
         import NavigationController from './js/navigation-controller.js';
+        import MouseController from './js/mouse-controller.js';
         import CameraManager from './js/camera-manager.js';
 
         const video = document.getElementById('webcam');
@@ -293,6 +295,7 @@
         let cameraManager = null;
         let gestureDetector = null;
         let navigationController = null;
+        let mouseController = null;
 
         async function initApp() {
             try {
@@ -312,6 +315,7 @@
                     if (!gestureDetector) {
                         gestureDetector = new GestureDetector(video, canvas);
                         navigationController = new NavigationController(gestureDetector);
+                        mouseController = new MouseController(gestureDetector);
                     } else {
                         gestureDetector.video = video;
                     }

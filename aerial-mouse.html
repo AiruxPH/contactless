@@ -6,36 +6,82 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Aerial Mouse Test - Contactless Navigation</title>
     <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="shooting-stars/stars.css">
     <style>
+        body {
+            background: #0a0a0c;
+            color: #fff;
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Nav Header */
+        header {
+            padding: 0 40px;
+            display: flex;
+            align-items: center;
+            height: 70px;
+            background: rgba(10, 10, 12, 0.8);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            color: white;
+            z-index: 120;
+            position: relative;
+        }
+
+        header h1 {
+            font-size: 1.5em;
+            margin: 0;
+            background: linear-gradient(135deg, #fff 0%, #38bdf8 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .back-link {
+            color: #4facfe;
+            text-decoration: none;
+            margin-right: 20px;
+            font-weight: bold;
+            transition: color 0.3s;
+            font-size: 1.1em;
+        }
+
+        .back-link:hover {
+            color: #00f2fe;
+        }
+
         .mouse-playground {
             position: relative;
-            height: calc(100vh - 80px);
-            /* Minus header */
+            height: calc(100vh - 70px);
             width: 100%;
-            background: #f0f2f5;
+            background: transparent;
             overflow: hidden;
             display: flex;
             justify-content: center;
             align-items: center;
             flex-direction: column;
+            z-index: 1;
         }
 
         .target-button {
             padding: 20px 40px;
             font-size: 1.5em;
-            background: #007bff;
+            background: linear-gradient(135deg, #6e45e2 0%, #88d3ce 100%);
             color: white;
             border: none;
             border-radius: 50px;
             cursor: pointer;
-            transition: transform 0.2s, background 0.2s;
-            box-shadow: 0 5px 15px rgba(0, 123, 255, 0.3);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 10px 20px rgba(110, 69, 226, 0.3);
             margin: 20px;
+            z-index: 10;
         }
 
         .target-button:hover {
-            transform: scale(1.1);
-            background: #0056b3;
+            transform: scale(1.1) translateY(-5px);
+            box-shadow: 0 15px 30px rgba(110, 69, 226, 0.4);
         }
 
         .target-button:active {
@@ -43,158 +89,210 @@
         }
 
         .zoom-target {
-            width: 300px;
-            height: 200px;
-            background-color: #e9ecef;
-            background-image: url('https://picsum.photos/600/400');
+            width: 320px;
+            height: 220px;
+            background-image: url('https://picsum.photos/640/440');
             background-size: cover;
             background-position: center;
-            border-radius: 12px;
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
             margin: 20px;
             transition: transform 0.1s ease-out;
-            /* Smooth zoom */
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
             font-weight: bold;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
             position: relative;
+            border: 2px solid rgba(255, 255, 255, 0.1);
         }
 
         .zoom-target::after {
-            content: 'Use Middle-Finger Lever + Pinch to Zoom';
+            content: 'Middle-Finger Lever + Pinch to Zoom';
             position: absolute;
-            bottom: -30px;
+            bottom: -35px;
             left: 0;
             width: 100%;
             text-align: center;
             font-size: 0.85em;
-            color: #666;
+            color: #94a3b8;
+            font-weight: normal;
         }
 
         #camera-wrapper {
             position: absolute;
-            bottom: 20px;
-            right: 20px;
+            bottom: 30px;
+            right: 30px;
             width: 320px;
             height: 240px;
-            border-radius: 12px;
+            border-radius: 20px;
             overflow: hidden;
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
-            border: 2px solid white;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
             z-index: 100;
         }
 
-        .stats-panel {
-            background: rgba(255, 255, 255, 0.9);
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            width: 220px;
-        }
-
-        /* Nav Header */
-        header {
-            padding: 0 20px;
+        .side-panel-container {
+            position: absolute;
+            top: 20px;
+            left: 20px;
             display: flex;
-            align-items: center;
-            height: 60px;
-            background: #333;
-            color: white;
+            flex-direction: column;
+            gap: 20px;
+            z-index: 110;
         }
 
-        .back-link {
-            color: white;
-            text-decoration: none;
-            margin-right: 20px;
+        .stats-panel,
+        .instructions-panel {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 16px;
+            width: 240px;
+            color: #fff;
+        }
+
+        .stats-panel h4,
+        .instructions-panel h4 {
+            margin: 0 0 15px 0;
+            color: #38bdf8;
+            font-size: 1em;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 8px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            font-size: 0.9em;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .stats-label {
+            color: #94a3b8;
+        }
+
+        .stats-value {
+            color: #fff;
             font-weight: bold;
+            text-align: right;
         }
 
-        /* Responsive Layout for Mobile */
+        .instructions-panel ul {
+            padding-left: 20px;
+            margin: 0;
+            color: #cbd5e1;
+            font-size: 0.9em;
+        }
+
+        .instructions-panel li {
+            margin-bottom: 8px;
+        }
+
+        #action-log {
+            color: #38bdf8;
+            margin-top: 50px;
+            font-weight: bold;
+            height: 30px;
+            z-index: 10;
+            text-shadow: 0 0 15px rgba(56, 189, 248, 0.5);
+            font-size: 1.2em;
+        }
+
+        /* Responsive Layout */
         @media (max-width: 768px) {
             .side-panel-container {
-                position: relative !important;
-                top: 0 !important;
-                left: 0 !important;
-                width: 100% !important;
-                padding: 15px;
-                order: 2;
+                position: relative;
+                top: 0;
+                left: 0;
+                width: 100%;
+                padding: 20px;
+                box-sizing: border-box;
             }
 
             .stats-panel,
             .instructions-panel {
-                width: 100% !important;
-                max-width: none !important;
+                width: 100%;
             }
 
             #camera-wrapper {
-                width: 180px !important;
-                height: 135px !important;
-                bottom: 10px !important;
-                right: 10px !important;
+                width: 180px;
+                height: 135px;
+                bottom: 20px;
+                right: 20px;
             }
 
             .mouse-playground {
-                height: auto !important;
-                min-height: calc(100vh - 60px);
-                justify-content: flex-start !important;
-                padding-bottom: 160px;
-                /* Space for camera */
+                height: auto;
+                min-height: calc(100vh - 70px);
+                justify-content: flex-start;
+                padding-bottom: 180px;
             }
 
-            .target-button {
-                margin: 40px 20px;
+            header {
+                padding: 0 20px;
             }
         }
     </style>
+    <link rel="stylesheet" href="shooting-stars/stars.css">
 </head>
 
 <body>
+    <!-- Shooting Stars Background -->
+    <div class="stars" style="z-index: 0; position: fixed; width: 100%; height: 100%;">
+        <div class="star"></div>
+        <div class="star"></div>
+        <div class="star"></div>
+        <div class="star"></div>
+        <div class="star"></div>
+        <div class="star"></div>
+        <div class="star"></div>
+        <div class="star"></div>
+    </div>
+
     <header>
         <a href="index.html" class="back-link">← Back</a>
         <h1>Aerial Mouse Playground</h1>
     </header>
 
     <div class="mouse-playground">
-        <div class="side-panel-container"
-            style="position: absolute; top: 20px; left: 20px; display: flex; flex-direction: column; gap: 20px; z-index: 110;">
-            <div class="stats-panel"
-                style="background: rgba(255, 255, 255, 0.9); padding: 15px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); width: 220px;">
+        <div class="side-panel-container">
+            <div class="stats-panel">
                 <h4>Mouse Stats</h4>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-size: 0.9em;">
-                    <span>X:</span> <span id="cursor-x" style="font-family: monospace;">0</span>
-                    <span>Y:</span> <span id="cursor-y" style="font-family: monospace;">0</span>
-                    <span>State:</span> <span id="cursor-state" style="font-weight: bold; color: #666;">Hover</span>
-                    <span>Zoom Lever:</span> <span id="lever-status"
-                        style="font-weight: bold; color: #999;">Released</span>
-                    <span>Ring Grip:</span> <span id="ring-status"
-                        style="font-weight: bold; color: #999;">Released</span>
+                <div class="stats-grid">
+                    <span class="stats-label">Pos X:</span> <span id="cursor-x" class="stats-value">0</span>
+                    <span class="stats-label">Pos Y:</span> <span id="cursor-y" class="stats-value">0</span>
+                    <span class="stats-label">State:</span> <span id="cursor-state" class="stats-value">Hover</span>
+                    <span class="stats-label">Zoom Lever:</span> <span id="lever-status" class="stats-value">OFF</span>
+                    <span class="stats-label">Ring Grip:</span> <span id="ring-status" class="stats-value">OFF</span>
                 </div>
             </div>
 
-            <div class="instructions-panel"
-                style="background: rgba(255, 255, 255, 0.9); padding: 15px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); width: 220px; font-size: 0.85em;">
-                <h4 style="margin-bottom: 8px;">Controls</h4>
-                <ul style="padding-left: 18px; margin: 0; color: #444;">
-                    <li><strong>Move:</strong> Point Index Finger</li>
-                    <li><strong>Click:</strong> Snap Pinky Closed</li>
-                    <li><strong>Zoom Lever:</strong> Hold Middle Finger Closed</li>
-                    <li><strong>Zoom:</strong> Pinch (while Lever is held)</li>
+            <div class="instructions-panel">
+                <h4>Controls</h4>
+                <ul>
+                    <li><strong>🤝 Grip (Ring):</strong> Engage Cursor</li>
+                    <li><strong>🖱️ Click (Pinky):</strong> Select Element</li>
+                    <li><strong>🔎 Lever (Middle):</strong> Focus Zoom</li>
+                    <li><strong>🤌 Pinch:</strong> Relative Zooming</li>
                 </ul>
             </div>
         </div>
 
-
         <button class="target-button" id="click-target">Click Me!</button>
 
         <div class="zoom-target" id="zoom-target">
-            Zoomable Image
+            High Precision Zoom
         </div>
 
-        <div id="action-log" style="color: #666; margin-top: 40px; font-weight: bold; height: 30px;">
-            Waiting for action...
+        <div id="action-log">
+            Hand Detection Active
         </div>
     </div>
 
@@ -207,15 +305,15 @@
 
         <!-- Camera Selector Overlay -->
         <div
-            style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.6); padding: 5px; border-radius: 4px; display: flex; flex-direction: column; gap: 5px; z-index: 101;">
+            style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.6); padding: 8px; border-radius: 8px; display: flex; flex-direction: column; gap: 5px; z-index: 101; backdrop-filter: blur(5px);">
             <select id="camera-select"
-                style="background: #222; color: white; border: 1px solid #444; border-radius: 3px; font-size: 11px; padding: 2px;">
+                style="background: #222; color: white; border: 1px solid #444; border-radius: 4px; font-size: 11px; padding: 4px; cursor: pointer;">
                 <option>Scanning...</option>
             </select>
-            <div id="hand-status" style="font-size: 10px; text-align: right; color: #ff4444;">Not Detected</div>
+            <div id="hand-status" style="font-size: 11px; text-align: right; color: #ff4444; font-weight: bold;">Not
+                Detected</div>
         </div>
     </div>
-
 
     <!-- Cursor is reused from style.css -->
     <div id="hand-cursor"></div>
@@ -233,7 +331,6 @@
         let cameraManager = null;
         let gestureDetector = null;
         let mouseController = null;
-
         let clickCount = 0;
 
         async function init() {
@@ -246,25 +343,20 @@
                 }
             });
 
-            // Camera Selection
             const cameraSelect = document.getElementById('camera-select');
-
             const updateCameraList = async () => {
                 const devices = await cameraManager.getDevices();
                 cameraSelect.innerHTML = '';
-
                 if (devices.length === 0) {
                     cameraSelect.innerHTML = '<option>No cameras found</option>';
                     return;
                 }
-
                 devices.forEach(device => {
                     const opt = document.createElement('option');
                     opt.value = device.deviceId;
                     opt.textContent = device.label || `Camera ${cameraSelect.length + 1}`;
                     cameraSelect.appendChild(opt);
                 });
-
                 const targetId = cameraManager.getBestCamera();
                 if (targetId) {
                     const idx = devices.findIndex(d => d.deviceId === targetId);
@@ -276,48 +368,39 @@
             await updateCameraList();
 
             cameraSelect.addEventListener('change', async () => {
-                if (cameraSelect.value) {
-                    await cameraManager.startCamera(cameraSelect.value);
-                }
+                if (cameraSelect.value) await cameraManager.startCamera(cameraSelect.value);
             });
 
-            // Interaction listeners
             clickTarget.addEventListener('click', () => {
                 clickCount++;
-                clickTarget.textContent = `Clicked ${clickCount} Times!`;
-                clickTarget.style.backgroundColor = clickCount % 2 === 0 ? '#007bff' : '#28a745';
-                actionLog.textContent = `Button Clicked! (${clickCount})`;
+                clickTarget.textContent = `Captured! (${clickCount})`;
+                actionLog.textContent = `Selection Triggered! (${clickCount})`;
             });
 
-            // Feedback and Status logs
             window.addEventListener('detectorStatus', (e) => {
                 if (e.detail.type === 'handDetected') {
                     const status = document.getElementById('hand-status');
-                    status.textContent = e.detail.data ? 'Detected ✓' : 'Not Detected';
-                    status.style.color = e.detail.data ? '#4CAF50' : '#f44336';
+                    status.textContent = e.detail.data ? 'LINKED ✓' : 'DISCONNECTED';
+                    status.style.color = e.detail.data ? '#4ade80' : '#f87171';
                 }
             });
 
-
-            // Stats update
             setInterval(() => {
                 if (mouseController) {
                     document.getElementById('cursor-x').textContent = Math.round(mouseController.cursorX);
                     document.getElementById('cursor-y').textContent = Math.round(mouseController.cursorY);
 
                     const stateEl = document.getElementById('cursor-state');
-                    stateEl.textContent = mouseController.isDragging ? 'DRAGGING' : (mouseController.isDown ? 'DOWN' : 'HOVER');
-                    stateEl.style.color = mouseController.isDown ? '#dc3545' : '#666';
+                    stateEl.textContent = mouseController.isDragging ? 'DRAGGING' : (mouseController.isDown ? 'CLICK' : 'HOVER');
+                    stateEl.style.color = mouseController.isDown ? '#f87171' : '#fff';
 
                     const leverEl = document.getElementById('lever-status');
-                    const isLeverActive = mouseController.isMiddlePinch;
-                    leverEl.textContent = isLeverActive ? 'HOLDING (Zoom ON)' : 'Released';
-                    leverEl.style.color = isLeverActive ? '#ef6c00' : '#999';
+                    leverEl.textContent = mouseController.isMiddlePinch ? 'ACTIVE' : 'OFF';
+                    leverEl.style.color = mouseController.isMiddlePinch ? '#fbbf24' : '#94a3b8';
 
                     const ringEl = document.getElementById('ring-status');
-                    const isRingGripped = mouseController.isRingClosed;
-                    ringEl.textContent = isRingGripped ? 'GRIPPED (Mouse ON)' : 'Released';
-                    ringEl.style.color = isRingGripped ? '#4caf50' : '#999';
+                    ringEl.textContent = mouseController.isRingClosed ? 'GRIPPED' : 'OFF';
+                    ringEl.style.color = mouseController.isRingClosed ? '#4ade80' : '#94a3b8';
                 }
             }, 100);
         }

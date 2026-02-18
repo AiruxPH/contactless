@@ -63,8 +63,9 @@
             <ul>
                 <li><strong>🖐️ Palm Tilt:</strong> Continuous Drift</li>
                 <li><strong>☝️ Finger Flick:</strong> Snap-Flick Fling</li>
+                <li><strong>💍 Ring Grip:</strong> Cursor Clutch (Hold to Move)</li>
                 <li><strong>🤌 Pinky Click:</strong> Execute Action</li>
-                <li><strong>✊ Close Fist:</strong> Pause Detection</li>
+                <li><strong>✊ Close Fist:</strong> Toggle System Pause</li>
             </ul>
         </div>
     </div>
@@ -115,7 +116,10 @@
                         (12°) to stop.</li>
                     <li><strong>Finger Flick (Snap):</strong> Flick fingers to "fling" the page. Simulates a
                         high-momentum swipe.</li>
-                    <li><strong>🤌 Pinky Click:</strong> Tap your pinky to click elements at the cursor.</li>
+                    <li><strong>💍 Ring-Grip (Clutch):</strong> Fold your **Ring Finger** to "hold" the cursor. Release
+                        to lock it in place.</li>
+                    <li><strong>🤌 Pinky Click:</strong> Tap your pinky while the ring is gripped to click.</li>
+                    <li><strong>✊ System Pause:</strong> Fold a full fist for 1s to pause/resume.</li>
                 </ul>
                 <p><strong>💡 Tips:</strong> Use small tilts for continuous reading and flicks for fast page turns. The
                     system glides to a smooth stop.</p>
@@ -177,10 +181,6 @@
                         Launch Gallery →
                     </a>
 
-                    <a href="train-gestures.html"
-                        style="display: inline-block; padding: 15px 30px; background: linear-gradient(135deg, #ff9966 0%, #ff5e62 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 1.1em; box-shadow: 0 4px 15px rgba(255, 94, 98, 0.3); transition: transform 0.3s;">
-                        Train Gestures ✋
-                    </a>
 
                     <a href="aerial-mouse.html"
                         style="display: inline-block; padding: 15px 30px; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 1.1em; box-shadow: 0 4px 15px rgba(56, 239, 125, 0.3); transition: transform 0.3s;">
@@ -216,6 +216,7 @@
     <script type="module">
         import GestureDetector from './js/gesture-detector.js';
         import NavigationController from './js/navigation-controller.js';
+        import MouseController from './js/mouse-controller.js';
         import CameraManager from './js/camera-manager.js';
 
         const video = document.getElementById('webcam');
@@ -227,6 +228,7 @@
 
         let gestureDetector = null;
         let navigationController = null;
+        let mouseController = null;
         let cameraManager = null;
 
         async function initApp() {
@@ -250,6 +252,7 @@
                     if (!gestureDetector) {
                         gestureDetector = new GestureDetector(video, canvas);
                         navigationController = new NavigationController(gestureDetector);
+                        mouseController = new MouseController(gestureDetector);
                     } else {
                         gestureDetector.video = video;
                     }

@@ -1,10 +1,69 @@
-# Task: Final Polish for Cursor Snappiness & Gallery Friction
+# Tasks
 
-## 1. Update `js/mouse-controller.js`
-- Increase `maxLerp` from `0.35` to **`0.5`**. 
-- This will work with your existing `Math.pow(lerpT, 2)` logic to make the cursor feel lighter and faster during deliberate moves while remaining stable when still.
-
-## 2. Update `js/navigation-controller.js`
-- Update the `friction` logic to be context-aware.
-- **The Rule:** If `this.isGalleryMode()` is true, use a friction of **`0.88`**. Otherwise, keep the default **`0.92`**.
-- This will give the AntiGravity Gallery cards more "physical weight" and prevent them from flying off-screen too easily.
+- [x] Implementing Phone-Style "Touch & Flick" Navigation <!-- id: 350 -->
+    - [x] Implement Axis-Locking (Pitch vs Yaw + 5°) in `navigation-controller.js` <!-- id: 351 -->
+    - [x] Implement Velocity Accumulation & Friction (0.92) in `navigation-controller.js` <!-- id: 352 -->
+    - [x] Map "Snap-Flick" to high-impact jumps (600px/pageTurn) <!-- id: 353 -->
+    - [x] Update Action Feedback labels ("DRIVING", "FLICK") <!-- id: 354 -->
+- [x] Refining Home Page Glassmorphism & Contrast <!-- id: 340 -->
+    - [x] Update `.instructions` glass style in `style.css` <!-- id: 341 -->
+    - [x] Set white text for list items in Section 4 & 5 <!-- id: 342 -->
+- [x] Optimizing Gallery Card Dimensions & Visibility <!-- id: 330 -->
+    - [x] Adjust card dimensions in `style.css` <!-- id: 331 -->
+    - [x] Verify vertical clearance in `gallery.html` <!-- id: 332 -->
+- [x] Universal Glassmorphism Integration <!-- id: 320 -->
+    - [x] Update `section` and gallery container styles in `style.css` <!-- id: 321 -->
+    - [x] Create `.glass-panel` and starfield styles in `style.css` <!-- id: 311 -->
+    - [x] Apply glass and inject starfield into `index.html` & `gallery.html` <!-- id: 312 -->
+- [x] Implementing Space Background & Particles <!-- id: 300 -->
+    - [x] Convert `stars.scss` to `stars.css` <!-- id: 301 -->
+    - [x] Create `.card-orbital` styles in `style.css` <!-- id: 303 -->
+    - [x] Integrate stars into `gallery.html` & `index.html` <!-- id: 302 -->
+- [x] Balanced Gallery Widening <!-- id: 290 -->
+    - [x] Update card width and gap in `style.css` <!-- id: 291 -->
+    - [x] Compress header in `gallery.html` <!-- id: 292 -->
+- [x] Revert Gallery Layout Escalation <!-- id: 280 -->
+- [x] Solidifying Scrolling & Logic Cleanup <!-- id: 250 -->
+    - [x] Cleanup `js/navigation-controller.js` (Remove Swipes) <!-- id: 251 -->
+    - [x] Refine Continuous Mode (Power Curve) <!-- id: 252 -->
+    - [x] Implement Flick Shield in `js/gesture-detector.js` <!-- id: 253 -->
+    - [x] Sync UI Guides in `index.html` and `gallery.html` <!-- id: 254 -->
+- [x] Unifying Page Structures & Camera Priority <!-- id: 220 -->
+- [x] Optimizing Layout & Mobile Responsiveness <!-- id: 210 -->
+- [x] Refining Aerial Mouse UI & Instructions <!-- id: 200 -->
+- [x] Implementing Middle-Pinch Zoom Lever <!-- id: 190 -->
+- [x] Universal Camera Fallback & Prioritization <!-- id: 170 -->
+- [x] Universal Camera Selection & Robust Fallback <!-- id: 180 -->
+- [x] Fix Persistent Handedness Error <!-- id: 130 -->
+- [x] Implement Dynamic Camera Selection <!-- id: 140 -->
+- [x] Refine 3D Gimbal & Calibration Fix <!-- id: 110 -->
+- [x] Implement Debug Gimbal Indicators <!-- id: 95 -->
+- [x] Implement 2D Tilt Tracking (Pitch/Yaw) <!-- id: 80 -->
+- [x] Final Audit & Error Recheck <!-- id: 150 -->
+- [x] Phase 43: Global Ring-Grip & Design Sync <!-- id: 510 -->
+    - [x] Globalize Ring-Grip (Index, Gallery, Aerial Mouse, Analytics)
+    - [x] Harmonize Design (Starry Dark Theme for dashboards)
+    - [x] Platform Cleanup (Remove train-gestures.html)
+- [x] Phase 42: Zoom Lever Isolation & "Smooth Engagement" <!-- id: 500 -->
+    - [x] Update `GestureDetector.js` with Index-Open isolation guard <!-- id: 501 -->
+    - [x] Implement "Zero-Jump" Pivot Calibration in `MouseController.js` <!-- id: 502 -->
+- [x] Phase 41: Ring-Grip UI & Pinky Click Isolation Fix <!-- id: 490 -->
+    - [x] Update `GestureDetector.js` to allow clicking during Ring-Grip <!-- id: 491 -->
+    - [x] Add Ring Grip indicator to `aerial-mouse.html` <!-- id: 492 -->
+    - [x] Update `AnalyticsController.js` with Ring status <!-- id: 493 -->
+- [x] Phase 40: Ring-Grip Engagement & Fist Clench Refinement <!-- id: 480 -->
+    - [x] Implement `isFist` for absolute clench-pause <!-- id: 481 -->
+    - [x] Implement `isRingClosed` cursor "gas pedal" <!-- id: 482 -->
+    - [x] Update `MouseController` to freeze if ring is open <!-- id: 483 -->
+- [x] Phase 39: Functional Stability Sync <!-- id: 470 -->
+- [x] Phase 38: Analytics & Gesture Signal Conditioning <!-- id: 460 -->
+- [x] Phase 37: Context-Aware Gallery Friction <!-- id: 450 -->
+- [x] Phase 36: Final Polish for Cursor Snappiness <!-- id: 440 -->
+- [x] Phase 35: Tracking Persistence & Latency Optimization <!-- id: 430 -->
+- [x] Phase 34: Restore Landmark Visibility <!-- id: 420 -->
+- [x] Phase 33: Visual Persistence while Paused <!-- id: 410 -->
+- [x] Phase 32: Pause-State Cursor Lockdown <!-- id: 400 -->
+- [x] Implementing Clench-to-Pause Feature <!-- id: 390 -->
+- [x] Refining Pinky Click Deconfliction <!-- id: 380 -->
+- [x] Stabilizing Jittery Cursor & Navigation Physics <!-- id: 370 -->
+- [x] Optimizing Shooting Stars Performance <!-- id: 360 -->
