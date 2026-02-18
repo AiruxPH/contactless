@@ -649,8 +649,10 @@ class GestureDetector {
             if (pinkyDistance < pinkyClickThreshold) {
                 if (!this.isPinkyTap && pinkyVelocity > snapThreshold) {
                     // Check Isolation & Stability
-                    const isolationPass = isRingOpen && (this.isMiddlePinch || isMiddleOpen);
-                    const stabilityPass = palmSpeed < clickStabilityThreshold;
+                    // Phase 41: ALLOW clicking during Ring-Grip (removed isRingOpen requirement)
+                    // But BLOCK if in a full fist (isFist) to prioritize the clench-pause gesture
+                    const isolationPass = (this.isMiddlePinch || isMiddleOpen);
+                    const stabilityPass = palmSpeed < clickStabilityThreshold && !isFist;
 
                     if (isolationPass && stabilityPass) {
                         this.isPinkyTap = true;

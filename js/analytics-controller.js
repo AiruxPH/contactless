@@ -18,6 +18,7 @@ export default class AnalyticsController {
             pinch: document.getElementById('stat-pinch'),
 
             scale: document.getElementById('stat-scale'),
+            ring: document.getElementById('stat-ring'),
             log: document.getElementById('gesture-log'),
             table: document.getElementById('landmark-table'),
             gimbalToggle: document.getElementById('toggle-gimbal')
@@ -99,6 +100,11 @@ export default class AnalyticsController {
         if (this.elements.wristZ) this.elements.wristZ.textContent = (data.worldWristZ || 0).toFixed(4);
 
 
+
+        if (this.elements.ring) {
+            this.elements.ring.textContent = data.isRingClosed ? 'GRIPPED' : 'RELEASED';
+            this.elements.ring.style.color = data.isRingClosed ? '#4ade80' : '#64748b';
+        }
 
         this.elements.pinch.textContent = (data.pinchDistance || 0).toFixed(3);
         this.elements.scale.textContent = (data.handScale || 0).toFixed(3);

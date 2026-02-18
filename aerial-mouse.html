@@ -169,6 +169,8 @@
                     <span>State:</span> <span id="cursor-state" style="font-weight: bold; color: #666;">Hover</span>
                     <span>Zoom Lever:</span> <span id="lever-status"
                         style="font-weight: bold; color: #999;">Released</span>
+                    <span>Ring Grip:</span> <span id="ring-status"
+                        style="font-weight: bold; color: #999;">Released</span>
                 </div>
             </div>
 
@@ -311,6 +313,11 @@
                     const isLeverActive = mouseController.isMiddlePinch;
                     leverEl.textContent = isLeverActive ? 'HOLDING (Zoom ON)' : 'Released';
                     leverEl.style.color = isLeverActive ? '#ef6c00' : '#999';
+
+                    const ringEl = document.getElementById('ring-status');
+                    const isRingGripped = mouseController.isRingClosed;
+                    ringEl.textContent = isRingGripped ? 'GRIPPED (Mouse ON)' : 'Released';
+                    ringEl.style.color = isRingGripped ? '#4caf50' : '#999';
                 }
             }, 100);
         }
