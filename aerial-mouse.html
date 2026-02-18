@@ -88,14 +88,11 @@
         }
 
         .stats-panel {
-            position: absolute;
-            top: 20px;
-            left: 20px;
             background: rgba(255, 255, 255, 0.9);
             padding: 15px;
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            width: 200px;
+            width: 220px;
         }
 
         /* Nav Header */
@@ -124,26 +121,32 @@
     </header>
 
     <div class="mouse-playground">
-        <div class="stats-panel">
-            <h4>Mouse Stats</h4>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-size: 0.9em;">
-                <span>X:</span> <span id="cursor-x" style="font-family: monospace;">0</span>
-                <span>Y:</span> <span id="cursor-y" style="font-family: monospace;">0</span>
-                <span>State:</span> <span id="cursor-state" style="font-weight: bold; color: #666;">Hover</span>
-                <span>Zoom Lever:</span> <span id="lever-status" style="font-weight: bold; color: #999;">Released</span>
+        <div class="side-panel-container"
+            style="position: absolute; top: 20px; left: 20px; display: flex; flex-direction: column; gap: 20px; z-index: 110;">
+            <div class="stats-panel"
+                style="background: rgba(255, 255, 255, 0.9); padding: 15px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); width: 220px;">
+                <h4>Mouse Stats</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-size: 0.9em;">
+                    <span>X:</span> <span id="cursor-x" style="font-family: monospace;">0</span>
+                    <span>Y:</span> <span id="cursor-y" style="font-family: monospace;">0</span>
+                    <span>State:</span> <span id="cursor-state" style="font-weight: bold; color: #666;">Hover</span>
+                    <span>Zoom Lever:</span> <span id="lever-status"
+                        style="font-weight: bold; color: #999;">Released</span>
+                </div>
+            </div>
+
+            <div class="instructions-panel"
+                style="background: rgba(255, 255, 255, 0.9); padding: 15px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); width: 220px; font-size: 0.85em;">
+                <h4 style="margin-bottom: 8px;">Controls</h4>
+                <ul style="padding-left: 18px; margin: 0; color: #444;">
+                    <li><strong>Move:</strong> Point Index Finger</li>
+                    <li><strong>Click:</strong> Snap Pinky Closed</li>
+                    <li><strong>Zoom Lever:</strong> Hold Middle Finger Closed</li>
+                    <li><strong>Zoom:</strong> Pinch (while Lever is held)</li>
+                </ul>
             </div>
         </div>
 
-        <div class="instructions-panel"
-            style="position: absolute; top: 180px; left: 20px; background: rgba(255, 255, 255, 0.9); padding: 15px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); width: 200px; font-size: 0.85em; margin-top: 20px;">
-            <h4 style="margin-bottom: 8px;">Controls</h4>
-            <ul style="padding-left: 18px; margin: 0; color: #444;">
-                <li><strong>Move:</strong> Point Index Finger</li>
-                <li><strong>Click:</strong> Snap Pinky Closed</li>
-                <li><strong>Zoom Lever:</strong> Hold Middle Finger Closed</li>
-                <li><strong>Zoom:</strong> Pinch (while Lever is held)</li>
-            </ul>
-        </div>
 
         <button class="target-button" id="click-target">Click Me!</button>
 
