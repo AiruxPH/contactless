@@ -179,9 +179,12 @@
             });
 
             await cameraManager.getDevices();
-            if (cameraManager.videoDevices.length > 0) {
-                await cameraManager.startCamera(cameraManager.videoDevices[0].deviceId);
+            const targetDeviceId = cameraManager.getBestCamera();
+
+            if (targetDeviceId) {
+                await cameraManager.startCamera(targetDeviceId);
             }
+
 
             // Interaction listeners
             clickTarget.addEventListener('click', () => {

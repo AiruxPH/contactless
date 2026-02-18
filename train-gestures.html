@@ -228,13 +228,17 @@
                     cameraSelect.appendChild(opt);
                 });
 
-                // Auto-select DroidCam if present
-                const droidCamIndex = devices.findIndex(d => d.label.toLowerCase().includes('droidcam'));
-                const targetDeviceId = droidCamIndex !== -1 ? devices[droidCamIndex].deviceId : devices[0].deviceId;
+                // Select best available (DroidCam priority)
+                const targetDeviceId = cameraManager.getBestCamera();
 
-                if (droidCamIndex !== -1) cameraSelect.selectedIndex = droidCamIndex;
+                if (targetDeviceId) {
+                    const selectedIndex = devices.findIndex(d => d.deviceId === targetDeviceId);
+                    if (selectedIndex !== -1) cameraSelect.selectedIndex = selectedIndex;
+                    await cameraManager.startCamera(targetDeviceId);
+                } else {
+                    console.error('No cameras found for initialization');
+                }
 
-                await cameraManager.startCamera(targetDeviceId);
             }
 
             cameraSelect.addEventListener('change', async () => {

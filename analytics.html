@@ -344,14 +344,17 @@
                 });
 
                 // Set initial selection to match startCamera
-                const droidCamIndex = devices.findIndex(d => d.label.toLowerCase().includes('droidcam'));
-                if (droidCamIndex !== -1) {
-                    cameraSelect.selectedIndex = droidCamIndex;
-                    await cameraManager.startCamera(devices[droidCamIndex].deviceId);
+                const targetDeviceId = cameraManager.getBestCamera();
+
+                if (targetDeviceId) {
+                    const selectedIndex = devices.findIndex(d => d.deviceId === targetDeviceId);
+                    if (selectedIndex !== -1) cameraSelect.selectedIndex = selectedIndex;
+                    await cameraManager.startCamera(targetDeviceId);
                 } else {
-                    await cameraManager.startCamera(devices[0].deviceId);
+                    console.error('No cameras found for initialization');
                 }
                 gestureDetector.applyMirrorEffect();
+
             };
 
             try {

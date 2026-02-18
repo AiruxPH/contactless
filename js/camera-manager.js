@@ -18,18 +18,26 @@ export default class CameraManager {
             this.videoDevices = devices.filter(device => device.kind === 'videoinput');
             console.log('Available video devices:', this.videoDevices);
 
-            // Prioritize DroidCam if found and not already set
-            if (this.currentDeviceIndex === 0) {
-                const droidCamIndex = this.videoDevices.findIndex(d => d.label.toLowerCase().includes('droidcam'));
-                if (droidCamIndex !== -1) {
-                    this.currentDeviceIndex = droidCamIndex;
-                }
-            }
             return this.videoDevices;
         } catch (err) {
             console.error('Error enumerating devices:', err);
             return [];
         }
+    }
+
+    getBestCamera() {
+        if (this.videoDevices.length === 0) return null;
+
+        // Priority 1: DroidCam
+        const droidCam = this.videoDevices.find(d => d.label.toLowerCase().includes('droidcam'));
+        if (droidCam) {
+            this.currentDeviceIndex = this.videoDevices.indexOf(droidCam);
+            return droidCam.deviceId;
+        }
+
+        // Priority 2: Fallback to the first available camera
+        this.currentDeviceIndex = 0;
+        return this.videoDevices[0].deviceId;
     }
 
 
@@ -56,6 +64,10 @@ export default class CameraManager {
                 const track = stream.getVideoTracks()[0];
                 console.log('Camera started successfully with label:', track.label);
 
+                // Sync index if we fell back to a different camera than requested
+                const actualIndex = this.videoDevices.findIndex(d => d.label === track.label);
+                if (actualIndex !== -1) this.currentDeviceIndex = actualIndex;
+
                 if (this.onCameraReady) {
                     this.onCameraReady(stream);
                 }
@@ -66,9 +78,20 @@ export default class CameraManager {
             }
         }
 
-        console.error('All camera constraint sets failed:', lastError);
+        // If we reached here, the requested deviceId (or general video) failed.
+        // Try one last ditch effort: Start ANY available camera from the list that isn't the one we just tried
+        if (deviceId && this.videoDevices.length > 1) {
+            const fallbackDevice = this.videoDevices.find(d => d.deviceId !== deviceId);
+            if (fallbackDevice) {
+                console.log('Requested camera failed. Attempting fallback to:', fallbackDevice.label);
+                return await this.startCamera(fallbackDevice.deviceId);
+            }
+        }
+
+        console.error('All camera constraint sets and fallbacks failed:', lastError);
         throw lastError;
     }
+
 
     async switchCamera() {
         if (this.videoDevices.length > 1) {

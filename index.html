@@ -200,6 +200,9 @@
 
                 await cameraManager.getDevices();
 
+                // 2. Select best available (DroidCam priority)
+                const targetDeviceId = cameraManager.getBestCamera();
+
                 // Update UI list
                 if (deviceListDiv) {
                     deviceListDiv.innerHTML = cameraManager.videoDevices.map((d, i) =>
@@ -207,12 +210,13 @@
                     ).join('') || 'No cameras found';
                 }
 
-                if (cameraManager.videoDevices.length > 0) {
-                    await cameraManager.startCamera(cameraManager.videoDevices[cameraManager.currentDeviceIndex].deviceId);
+                if (targetDeviceId) {
+                    await cameraManager.startCamera(targetDeviceId);
                 } else {
                     if (deviceListDiv) deviceListDiv.textContent = 'No cameras detected';
-                    console.error('No video devices returned by enumerateDevices');
+                    console.error('No video devices found');
                 }
+
 
             } catch (err) {
                 console.error('Initialization error:', err);
