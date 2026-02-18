@@ -159,8 +159,18 @@ class GestureDetector {
     }
 
     drawHandLandmarks(landmarks) {
+        if (!landmarks || landmarks.length < 21) return;
+
         const ctx = this.ctx;
-        const indexTip = landmarks[8]; // Move to top-level for consistent scope
+        const wrist = landmarks[0];
+        const indexTip = landmarks[8];
+        const middleMCP = landmarks[9];
+
+        // Calculate Palm Center locally for drawing stability
+        const palmCenter = {
+            x: (wrist.x + middleMCP.x) / 2,
+            y: (wrist.y + middleMCP.y) / 2
+        };
 
         // Visual Cursor Logic (Built-in)
         if (this.enableVisualCursor) {
@@ -259,10 +269,6 @@ class GestureDetector {
         ctx.stroke();
 
 
-        // Palm Center Drawing (Logic now moved to detectGesture)
-        const palmCenter = this.currentPalmCenter;
-
-
         // Draw Palm Center as a larger red dot
         ctx.fillStyle = '#00f2ff';
         ctx.beginPath();
@@ -304,9 +310,6 @@ class GestureDetector {
             ctx.lineTo(wrist.x * this.canvas.width, wrist.y * this.canvas.height);
             ctx.stroke();
         }
-
-        this.currentPalmCenter = palmCenter;
-
     }
 
     isHandOpen(landmarks) {
