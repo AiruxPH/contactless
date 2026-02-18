@@ -107,6 +107,7 @@ class NavigationController {
 
             if (this.activeAxis === 'pitch' && handOpen && isFacingCamera) {
                 const newIntensity = (absPitch - deadzone) / (maxAngle - deadzone);
+                // 70/30 Smoothing (Landmark Sync)
                 this.pitchIntensity = (this.pitchIntensity * 0.7) + (Math.min(Math.max(newIntensity, 0), 3.0) * 0.3);
                 this.pitchDirection = pitch > 0 ? 1 : -1;
 
@@ -115,6 +116,7 @@ class NavigationController {
                 this.lastAction = 'DRIVING ↑↓';
             } else if (this.activeAxis === 'yaw' && handOpen && isFacingCamera) {
                 const newIntensity = (absYaw - deadzone) / (maxAngle - deadzone);
+                // 70/30 Smoothing (Landmark Sync)
                 this.yawIntensity = (this.yawIntensity * 0.7) + (Math.min(Math.max(newIntensity, 0), 3.0) * 0.3);
                 this.yawDirection = yaw > 0 ? 1 : -1;
 
@@ -139,7 +141,7 @@ class NavigationController {
             if (Math.abs(this.velocityY) < 0.2) this.velocityY = 0;
 
             let speed = Math.sqrt(this.velocityX * this.velocityX + this.velocityY * this.velocityY);
-            if (speed < 2.0) {
+            if (speed < 0.8) {
                 this.velocityX = 0;
                 this.velocityY = 0;
                 speed = 0;

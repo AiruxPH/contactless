@@ -118,7 +118,7 @@ class GestureDetector {
                         this.detectGesture(
                             results.landmarks[0],
                             results.worldLandmarks ? results.worldLandmarks[0] : null,
-                            results.handedness && results.handedness[0] ? results.handedness[0][0] : null
+                            results.handedness && results.handedness[0] ? results.handedness[0] : null
                         );
 
                         this.emitStatus('handDetected', true);
@@ -460,6 +460,7 @@ class GestureDetector {
 
 
         // 2. Emit Frame Data Immediately (Continuous Tracking)
+        // Optimization for Three.js: Emit BEFORE internal gesture logic
         this.emitHandFrame({
             landmarks,
             cursor: { x: (1 - indexTip.x) * window.innerWidth, y: indexTip.y * window.innerHeight },
@@ -473,7 +474,7 @@ class GestureDetector {
             yaw: yawDegrees,
             worldWristZ: worldWristZ,
             isFacingCamera: isFacingCamera,
-            handedness: handedness ? handedness.categoryName : 'N/A',
+            handedness: handedness ? (handedness.categoryName || handedness.label) : 'N/A',
             handScale: scale,
             isMiddlePinch: this.isMiddlePinch,
             isPinching: this.isPinching,
@@ -483,7 +484,7 @@ class GestureDetector {
             isPaused: this.isPaused
         });
 
-        // 2.5 Update Stability History
+        // 3. Update Stability History
         this.handStateHistory.push({
             isOpen: isOpen,
             isFacing: isFacingCamera,
@@ -493,10 +494,7 @@ class GestureDetector {
             this.handStateHistory.shift();
         }
 
-
-
-
-        // 3. Gesture Detection Guard: Cooldown
+        // 4. Gesture Detection Guard: Cooldown
         if (now - this.lastGestureTime < this.gestureCooldown) {
             return;
         }
@@ -508,7 +506,7 @@ class GestureDetector {
             time: now
         };
 
-        // 4. Hybrid Guard Logic
+        // 5. Hybrid Guard Logic
         // Mouse Cursor works as long as index is tracked.
         // Navigation (Swipe/Flick/Tilt) requires an open hand.
         if (!isOpen) {
