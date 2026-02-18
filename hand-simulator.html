@@ -194,6 +194,7 @@
             // 1. Setup Tracking
             const cameraManager = new CameraManager(video);
             const gestureDetector = new GestureDetector(video, canvas);
+            gestureDetector.enableDebugDrawing = false; // Simulator uses 3D model, hide 2D markers
 
             // 2. Setup 3D Simulator
             const threeCanvas = document.getElementById('three-canvas');
@@ -211,7 +212,7 @@
             const cameras = await cameraManager.getDevices();
             if (cameras.length > 0) {
                 cameraSelect.innerHTML = cameras.map(c => `<option value="${c.deviceId}">${c.label || 'Unknown Camera'}</option>`).join('');
-                
+
                 // Start the first camera automatically
                 await cameraManager.startCamera(cameras[0].deviceId);
             } else {

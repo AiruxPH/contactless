@@ -28,6 +28,7 @@ class GestureDetector {
         this.isPaused = false;
         this.trackingLossTime = null; // Buffer for accidental resets
         this.lastPalmSpeed = 0; // Filtered speed for gesture stability
+        this.enableDebugDrawing = true; // Toggle for 2D visual markers
 
         this.init();
     }
@@ -109,8 +110,10 @@ class GestureDetector {
                     const results = this.handLandmarker.detectForVideo(this.video, startTimeMs);
 
                     if (results.landmarks && results.landmarks.length > 0) {
-                        // Draw hand landmarks
-                        this.drawHandLandmarks(results.landmarks[0]);
+                        // Draw hand landmarks (optional)
+                        if (this.enableDebugDrawing) {
+                            this.drawHandLandmarks(results.landmarks[0]);
+                        }
 
                         // Detect gestures
                         this.detectGesture(
@@ -125,7 +128,7 @@ class GestureDetector {
                                 landmarks: results.landmarks[0],
                                 worldLandmarks: results.worldLandmarks ? results.worldLandmarks[0] : null,
                                 isPaused: this.isPaused,
-                                isRingClosed: this.isRingClosed,
+                                isRingClosed: this.isRingClosed(results.landmarks[0]),
                                 handedness: results.handedness && results.handedness[0] ? results.handedness[0][0] : null
                             });
                         }

@@ -85,21 +85,39 @@ export default class Hand3DController {
     }
 
     updateHand(data) {
-        if (!data || !data.landmarks) {
+        if (!data || (!data.landmarks && !data.worldLandmarks)) {
             this.hideHand();
             return;
         }
 
-        const landmarks = data.landmarks;
+        // Prioritize worldLandmarks for "better figure" (anatomical consistency)
+        const useWorld = !!data.worldLandmarks;
+        const landmarks = useWorld ? data.worldLandmarks : data.landmarks;
+        const isMirror = this.gestureDetector.isMirror;
 
         // 1. Update Joints
         landmarks.forEach((lm, i) => {
             if (this.joints[i]) {
-                // Map MediaPipe (0-1) to Three.js (-1 to 1)
-                // Normalize and flip Y 
-                const x = (lm.x - 0.5) * 4; // Scale it up for visibility
-                const y = (0.5 - lm.y) * 3;
-                const z = -lm.z * 2; // MediaPipe Z is depth relative to wrist
+                let x, y, z;
+
+                if (useWorld) {
+                    // World landmarks (meters). Wrist is center.
+                    x = lm.x * 12; // Scale for Three.js scene
+                    y = -lm.y * 12;
+                    z = -lm.z * 12;
+
+                    // If mirroring, flip X
+                    if (isMirror) x = -x;
+                } else {
+                    // Normalized screen landmarks (0-1)
+                    x = (lm.x - 0.5) * 4;
+                    y = (0.5 - lm.y) * 3;
+                    z = -lm.z * 2;
+
+                    // If mirroring, flip X (MediaPipe screen space is already mirrored if camera is)
+                    // but we might need to sync it with the Three.js coordinate system
+                    if (isMirror) x = -x;
+                }
 
                 this.joints[i].position.set(x, y, z);
                 this.joints[i].visible = true;
