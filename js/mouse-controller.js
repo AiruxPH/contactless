@@ -22,7 +22,6 @@ export default class MouseController {
         this.zoomElement = document.getElementById('zoom-target');
         this.currentZoom = 1;
         this.lastMiddlePinch = false;
-        this.zoomPivotOffset = 0; // Calibration offset to prevent jumpscares
 
         // State for Dynamic Smoothing and Shielding
         this.lastUpdateTime = Date.now();
@@ -291,24 +290,14 @@ export default class MouseController {
             const clampedD = Math.min(Math.max(this.currentPinchDistance, minD), maxD);
             let t = (clampedD - minD) / (maxD - minD);
 
-            // 3. Non-linear mapping (Exponential curve for smoother start, faster end)
+            // 3. Non-linear mapping
             const smoothedT = Math.pow(t, 1.5);
 
-            // 4. Calculate RAW target zoom (0.5x to 3.0x range)
-            const rawTargetZoom = 0.5 + (smoothedT * 2.5);
+            // 4. Direct mapping with safety clamp (0.1x to 3.0x range)
+            const targetZoom = Math.max(0.1, 0.5 + (smoothedT * 2.5));
 
-            // 5. PIVOT CALIBRATION: Prevent Jumpscare
-            // Transition check: If lever was just pulled, set the offset to match current scale
-            if (!this.lastMiddlePinch) {
-                this.zoomPivotOffset = rawTargetZoom - this.currentZoom;
-                console.log(`Zoom Pivot Calibrated! Offset: ${this.zoomPivotOffset.toFixed(2)}`);
-            }
-
-            // 6. Apply Offset for relative movement
-            const calibratedTarget = rawTargetZoom - this.zoomPivotOffset;
-
-            const lerpFactor = 0.15; // Slightly faster reaction
-            this.currentZoom = this.currentZoom + (calibratedTarget - this.currentZoom) * lerpFactor;
+            const lerpFactor = 0.15;
+            this.currentZoom = this.currentZoom + (targetZoom - this.currentZoom) * lerpFactor;
 
             if (this.zoomElement) {
                 this.zoomElement.style.transform = `scale(${this.currentZoom.toFixed(2)})`;
