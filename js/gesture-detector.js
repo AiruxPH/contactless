@@ -165,12 +165,42 @@ class GestureDetector {
             ctx.arc(
                 landmark.x * this.canvas.width,
                 landmark.y * this.canvas.height,
-                5,
+                3, // Smaller for standard landmarks
                 0,
                 2 * Math.PI
             );
             ctx.fill();
         });
+
+        // Palm Center Calculation and Drawing
+        // User Spec: Midpoint between wrist [0] and MCPs [5, 9, 13, 17]
+        const mcps = [landmarks[5], landmarks[9], landmarks[13], landmarks[17]];
+        const avgMcp = {
+            x: mcps.reduce((sum, p) => sum + p.x, 0) / 4,
+            y: mcps.reduce((sum, p) => sum + p.y, 0) / 4
+        };
+        const wrist = landmarks[0];
+        const palmCenter = {
+            x: (wrist.x + avgMcp.x) / 2,
+            y: (wrist.y + avgMcp.y) / 2
+        };
+
+        // Draw Palm Center as a larger red dot
+        ctx.fillStyle = '#FF0000';
+        ctx.beginPath();
+        ctx.arc(
+            palmCenter.x * this.canvas.width,
+            palmCenter.y * this.canvas.height,
+            8, // Larger for visibility
+            0,
+            2 * Math.PI
+        );
+        ctx.fill();
+        ctx.strokeStyle = '#FFFFFF'; // White border for distinction
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        this.currentPalmCenter = palmCenter;
     }
 
     isHandOpen(landmarks) {
@@ -231,6 +261,10 @@ class GestureDetector {
         this.emitHandFrame({
             landmarks,
             cursor: { x: (1 - indexTip.x) * window.innerWidth, y: indexTip.y * window.innerHeight },
+            palmCenter: this.currentPalmCenter ? {
+                x: (1 - this.currentPalmCenter.x) * window.innerWidth,
+                y: this.currentPalmCenter.y * window.innerHeight
+            } : null,
             pinchDistance: rawPinchDistance,
             handScale: scale,
             isPinching: this.isPinching,
