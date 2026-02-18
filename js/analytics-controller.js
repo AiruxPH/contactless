@@ -21,8 +21,7 @@ export default class AnalyticsController {
             ring: document.getElementById('stat-ring'),
             log: document.getElementById('gesture-log'),
             table: document.getElementById('landmark-table'),
-            gimbalToggle: document.getElementById('toggle-gimbal'),
-            connection: document.getElementById('detector-status')
+            gimbalToggle: document.getElementById('toggle-gimbal')
         };
 
 
@@ -43,35 +42,7 @@ export default class AnalyticsController {
 
 
     handleFrame(data) {
-        if (!data || !data.landmarks) {
-            // Reset visuals when hand is lost
-            this.smoothedSpeed = 0;
-            if (this.elements.speed) this.elements.speed.textContent = "0.0 px/s";
-            if (this.elements.facing) {
-                this.elements.facing.textContent = "NOT DETECTED";
-                this.elements.facing.style.color = "#64748b";
-            }
-            if (this.elements.pitch) this.elements.pitch.textContent = "0.0°";
-            if (this.elements.yaw) this.elements.yaw.textContent = "0.0°";
-            if (this.elements.handedness) this.elements.handedness.textContent = "N/A";
-            if (this.elements.wristZ) this.elements.wristZ.textContent = "0.0000";
-            if (this.elements.pinch) this.elements.pinch.textContent = "0.000";
-            if (this.elements.scale) this.elements.scale.textContent = "0.000";
-            if (this.elements.table) this.elements.table.innerHTML = "";
-
-            if (this.elements.connection) {
-                this.elements.connection.textContent = "IDLE";
-                this.elements.connection.style.background = "rgba(148, 163, 184, 0.1)";
-                this.elements.connection.style.color = "#94a3b8";
-            }
-            return;
-        }
-
-        if (this.elements.connection) {
-            this.elements.connection.textContent = "CONNECTED";
-            this.elements.connection.style.background = "rgba(56, 189, 248, 0.1)";
-            this.elements.connection.style.color = "#38bdf8";
-        }
+        if (!data || !data.landmarks) return;
 
         const now = Date.now();
         const dt = (now - this.lastFrameTime) / 1000;
