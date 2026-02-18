@@ -130,13 +130,13 @@ export default class Hand3DController {
                 if (useWorld) {
                     // World landmarks (meters) relative to wristAnchor
                     x = (lm.x - wristAnchor.x) * 10;
-                    y = (wristAnchor.y - lm.y) * 10; // Flip Y for MP (down) to Three (up)
-                    z = (wristAnchor.z - lm.z) * 10; // Flip Z for anatomical consistency
-
+                    y = (wristAnchor.y - lm.y) * 10;
+                    z = (wristAnchor.z - lm.z) * 10;
                     if (isMirror) x = -x;
                 } else {
-                    x = (lm.x - 0.5) * 4;
-                    y = (0.5 - lm.y) * 3;
+                    // Fallback to screen space relative to wrist (since handGroup is at wrist pos)
+                    x = (lm.x - data.landmarks[0].x) * 4;
+                    y = (data.landmarks[0].y - lm.y) * 3;
                     z = -lm.z * 2;
                     if (isMirror) x = -x;
                 }
@@ -147,6 +147,9 @@ export default class Hand3DController {
         });
 
         // 2. Update Bone Segments
+        // CRITICAL: Update group matrix so children have valid world positions for lookAt
+        this.handGroup.updateMatrixWorld(true);
+
         const targetWorldPos = new THREE.Vector3();
         this.boneConnections.forEach((conn, i) => {
             const startJoint = this.joints[conn[0]];
