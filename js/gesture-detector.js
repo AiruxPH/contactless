@@ -143,6 +143,7 @@ class GestureDetector {
 
     drawHandLandmarks(landmarks) {
         const ctx = this.ctx;
+        const indexTip = landmarks[8]; // Move to top-level for consistent scope
 
         // Visual Cursor Logic (Built-in)
         // Can be disabled if an external controller (like MouseController) wants to handle smoothing/physics
@@ -154,8 +155,6 @@ class GestureDetector {
                     cursor.style.filter = 'grayscale(1) opacity(0.5)';
                 } else {
                     cursor.style.filter = 'none';
-                    // Index finger tip is landmark 8
-                    const indexTip = landmarks[8];
                     // Mirror X coordinate for intuitive cursor movement
                     const screenX = (1 - indexTip.x) * window.innerWidth;
                     const screenY = indexTip.y * window.innerHeight;
