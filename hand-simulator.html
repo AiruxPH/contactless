@@ -76,6 +76,8 @@
         }
 
         #camera-preview {
+            position: relative;
+            /* Containing block for tracking-canvas */
             bottom: 20px;
             right: 20px;
             width: 240px;
@@ -195,7 +197,7 @@
             console.log("Hand Simulator: Initializing components...");
             const cameraManager = new CameraManager(video);
             const gestureDetector = new GestureDetector(video, canvas);
-            gestureDetector.enableDebugDrawing = true; // Temporary for visibility debug
+            gestureDetector.enableDebugDrawing = false; // Holographic 3D is now the primary visual
 
             // 2. Setup 3D Simulator
             const threeCanvas = document.getElementById('three-canvas');

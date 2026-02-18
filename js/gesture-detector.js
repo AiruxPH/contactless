@@ -181,19 +181,15 @@ class GestureDetector {
         const indexTip = landmarks[8]; // Move to top-level for consistent scope
 
         // Visual Cursor Logic (Built-in)
-        // Can be disabled if an external controller (like MouseController) wants to handle smoothing/physics
         if (this.enableVisualCursor) {
             const cursor = document.getElementById('hand-cursor');
             if (cursor) {
                 if (this.isPaused) {
-                    // LOCKDOWN: Cursor visual feedback for pause
                     cursor.style.filter = 'grayscale(1) opacity(0.5)';
                 } else {
                     cursor.style.filter = 'none';
-                    // Mirror X coordinate for intuitive cursor movement
                     const screenX = (1 - indexTip.x) * window.innerWidth;
                     const screenY = indexTip.y * window.innerHeight;
-
                     cursor.style.left = `${screenX}px`;
                     cursor.style.top = `${screenY}px`;
                 }
