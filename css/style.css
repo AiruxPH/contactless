@@ -190,6 +190,8 @@ html {
     border-radius: 12px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
     border: 1px solid rgba(255, 255, 255, 0.1);
+    border-left: 4px solid rgba(56, 189, 248, 0.3);
+    margin: 20px 0;
 }
 
 #status-panel .instructions-panel,
@@ -230,28 +232,6 @@ html {
     color: #333;
 }
 
-/* Instructions */
-.instructions {
-    background: #f8fafc;
-    padding: 20px;
-    border-radius: 12px;
-    border-left: 4px solid #38bdf8;
-    margin: 20px 0;
-}
-
-.instructions h4 {
-    color: #1976D2;
-    margin-bottom: 10px;
-}
-
-.instructions ul {
-    margin-left: 20px;
-}
-
-.instructions li {
-    margin: 8px 0;
-    color: #555;
-}
 
 /* AntiGravity Gallery Section */
 .antigravity-gallery {
