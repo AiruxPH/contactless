@@ -1,27 +1,24 @@
-# Task: Refine Navigation to Physical "Touch & Flick" Model
+# Task: Stabilize Jittery Cursor & Navigation Physics
 
 ## Objective
-Transform the mid-air scrolling into a physical simulation that mimics a smartphone. The 3D Gimbal will act as a 'Virtual Thumb' for continuous dragging (Joystick Drift), and finger snaps will act as 'Hard Swipes' (Snap-Flick).
+Implement signal filtering to eliminate landmark noise. Ensure that the cursor and scrolling remain perfectly still when the hand is stable, only reacting to deliberate intent.
 
 ## Technical Requirements
 
-### 1. Axis Locking & Intent Detection (`js/navigation-controller.js`)
-To prevent diagonal drift and jitter, implement an axis-lock:
-- **Dominant Axis Logic:** Compare the absolute values of `Pitch` and `Yaw`. 
-- If `Math.abs(pitch) > Math.abs(yaw) + 5`, lock the horizontal axis to 0 and focus purely on vertical scrolling.
-- If `Math.abs(yaw)` is dominant (primarily in Gallery mode), lock the vertical axis to 0.
-- **Reset:** Unlock the axes only when the hand returns to the neutral deadzone (12°).
+### 1. Velocity Dead-Zones (The Noise Gate)
+Update `js/navigation-controller.js` to ignore micro-velocities.
+- **Threshold Gate:** Inside the physics loop, if `Math.sqrt(velocityX^2 + velocityY^2) < 0.5`, force both velocities to absolute zero.
+- **Why:** This prevents the "drifting" feel where the page creeps slowly because of landmark vibration.
 
-### 2. The "Joystick Drift" (Continuous Dragging)
-Refine the continuous scroll physics to include momentum:
-- **Velocity Accumulation:** Instead of scrolling by a fixed degree value, use the tilt intensity to add "acceleration" to a velocity variable.
-- **Friction (Decay Factor):** Apply a friction coefficient of `0.92`. When the hand levels out, the velocity should multiply by `0.92` every frame, causing the content to glide to a smooth stop rather than freezing instantly.
-- **Curve Sync:** Maintain the `18 * Math.pow(intensity, 1.5)` curve as the base for this acceleration.
+### 2. Weighted Moving Average (Smoothing)
+Refine how tilt intensity is calculated in `js/navigation-controller.js`.
+- **Smoothing Factor:** Instead of using the raw `pitchIntensity` from a single frame, average it with the previous frame: `this.pitchIntensity = (this.pitchIntensity * 0.7) + (newIntensity * 0.3)`.
+- **Result:** This "Low-Pass Filter" ignores sudden spikes in data (jitter) and only tracks the smooth trend of your hand's tilt.
 
-### 3. The "Snap-Flick" (Page Flings)
-Sync finger snaps with high-impact movement:
-- **Impulse Trigger:** When a `finger-flick` is detected (already shielded by `palmSpeed < 0.15`), trigger a one-time large scroll offset.
-- **Impact:** Map a flick to a `600px` jump (Vertical) or a `pageTurn` amount (Horizontal Gallery) to mimic 'flinging' a phone screen.
+### 3. Flick Velocity Guard
+Stabilize the `injectFlickImpulse` logic.
+- **Minimum Impact:** Require a higher velocity threshold from the `GestureDetector` before injecting impulse.
+- **Snap Guard:** Confirm that `finger-flick` events only trigger if the hand has been open and stable for at least 3 frames to avoid "jitter-flicks".
 
-### 4. UI Feedback Sync
-- Ensure the **Action Feedback** overlay displays "DRIVING" during continuous drift and "FLICK" during snap-flicks to help the user distinguish the two modes.
+### 4. Cursor Stabilization (`js/mouse-controller.js`)
+- **Exponential Smoothing:** Increase the `smoothingFactor` logic. If the hand speed is low, aggressively increase smoothing to "anchor" the cursor in place.
