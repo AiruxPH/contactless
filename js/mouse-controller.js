@@ -56,8 +56,8 @@ export default class MouseController {
         this.currentHandOpen = data.handOpen;
         this.isMiddlePinch = data.isMiddlePinch;
 
-        // Update raw target from detector
-        if (data.cursor) {
+        // Update raw target from detector - ONLY if not paused
+        if (data.cursor && !data.isPaused) {
             this.targetX = data.cursor.x;
             this.targetY = data.cursor.y;
         }
@@ -153,7 +153,12 @@ export default class MouseController {
         this.lastUpdateTime = now;
 
         // 0. PAUSE GUARD: Lock everything if clench-paused
-        if (this.isPaused) return;
+        if (this.isPaused) {
+            // Force target to be current position to prevent "drift" when unpausing
+            this.targetX = this.cursorX;
+            this.targetY = this.cursorY;
+            return;
+        }
 
         // 1. CLICK SHIELD: Freeze coordinates if we just clicked
         if (now - this.clickShieldTime < this.clickShieldDuration) {
@@ -251,13 +256,17 @@ export default class MouseController {
             if (this.isPaused) {
                 this.cursor.style.filter = 'grayscale(1) opacity(0.5)';
                 this.cursor.style.border = '2px dashed #fff';
+                this.cursor.style.transition = 'none'; // CRITICAL: Stop hardware-accelerated jitter
             } else {
                 this.cursor.style.filter = 'none';
                 this.cursor.style.border = '2px solid rgba(255,255,255,0.8)';
+                this.cursor.style.transition = 'width 0.2s, height 0.2s, background 0.2s, box-shadow 0.1s ease-out, transform 0.1s ease-out';
             }
         }
 
-        // Check if hovering zoom target OR already locked in zoom
+        // Check if hovering zoom target OR already locked in zoom - ONLY if not paused
+        if (this.isPaused) return;
+
         const elem = document.elementFromPoint(this.cursorX, this.cursorY);
         const isHoveringZoom = elem && elem.closest('#zoom-target');
 

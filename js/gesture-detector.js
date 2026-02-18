@@ -147,6 +147,8 @@ class GestureDetector {
         // Visual Cursor Logic (Built-in)
         // Can be disabled if an external controller (like MouseController) wants to handle smoothing/physics
         if (this.enableVisualCursor) {
+            if (this.isPaused) return; // LOCKDOWN: Do not move cursor if paused
+
             const cursor = document.getElementById('hand-cursor');
             if (cursor) {
                 // Index finger tip is landmark 8
