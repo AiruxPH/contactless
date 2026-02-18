@@ -99,31 +99,41 @@
         <canvas id="output"></canvas>
     </div>
 
-    <!-- Status Panel -->
-    <div id="status-panel">
-        <h3>Gesture Status</h3>
-        <button id="switch-camera-btn"
-            style="width: 100%; margin-bottom: 15px; padding: 10px; cursor: pointer; background: #333; color: white; border: none; border-radius: 4px;">Switch
-            Camera</button>
-        <div class="status-item">
-            <label>Hand Detection:</label>
-            <span id="hand-status">Initializing...</span>
+    <!-- Side Panel Container -->
+    <div class="side-panel-container">
+        <!-- Status Panel -->
+        <div id="status-panel">
+            <h3>Gallery Flow</h3>
+            <div class="status-item">
+                <label>Select Camera:</label>
+                <select id="camera-select"
+                    style="width: 100%; margin-top: 5px; padding: 4px; background: #fff; color: #333; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 0.85em;">
+                    <option>Scanning...</option>
+                </select>
+            </div>
+            <div class="status-item">
+                <label>Hand Presence:</label>
+                <span id="hand-status">Initializing...</span>
+            </div>
+            <div class="status-item">
+                <label>Active Gesture:</label>
+                <span id="gesture-status">None</span>
+            </div>
+            <div class="status-item">
+                <label>Last Event:</label>
+                <span id="action-status">None</span>
+            </div>
         </div>
-        <div class="status-item">
-            <label>Current Gesture:</label>
-            <span id="gesture-status">None</span>
-        </div>
-        <div class="status-item">
-            <label>Current Camera:</label>
-            <span id="camera-name">None</span>
-        </div>
-        <div class="status-item">
-            <label>Detected Devices:</label>
-            <div id="device-list" style="font-size: 0.8em; color: #666; margin-top: 5px;">Scanning...</div>
-        </div>
-        <div class="status-item">
-            <label>Last Action:</label>
-            <span id="action-status">None</span>
+
+        <!-- Instructions Panel -->
+        <div class="instructions-panel">
+            <h4>Gallery Guide</h4>
+            <ul>
+                <li><strong>↔️ Side Swipe:</strong> Flick left/right to drift</li>
+                <li><strong>✋ Open Hand:</strong> Re-engage momentum</li>
+                <li><strong>🤲 Palm Tilt:</strong> Continuous drift (Yaw)</li>
+                <li><strong>🤌 Index Pinch:</strong> Select Artwork</li>
+            </ul>
         </div>
     </div>
 
@@ -199,6 +209,7 @@
     <script type="module">
         import GestureDetector from './js/gesture-detector.js';
         import NavigationController from './js/navigation-controller.js';
+        import CameraManager from './js/camera-manager.js';
 
         const video = document.getElementById('webcam');
         const canvas = document.getElementById('output');
@@ -206,61 +217,24 @@
         const cameraNameSpan = document.getElementById('camera-name');
         const deviceListDiv = document.getElementById('device-list');
 
-        let currentStream = null;
-        let videoDevices = [];
-        let currentDeviceIndex = 0;
+        let cameraManager = null;
         let gestureDetector = null;
         let navigationController = null;
 
-        async function getDevices() {
+        async function initApp() {
             try {
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                videoDevices = devices.filter(device => device.kind === 'videoinput');
-                console.log('Available video devices:', videoDevices);
+                // Request permission first
+                await navigator.mediaDevices.getUserMedia({ video: true }).then(s => s.getTracks().forEach(t => t.stop()));
+                const cameraSelect = document.getElementById('camera-select');
 
-                // Update UI list
-                if (deviceListDiv) {
-                    deviceListDiv.innerHTML = videoDevices.map((d, i) =>
-                        `<div style="${i === currentDeviceIndex ? 'color: #4CAF50; font-weight: bold;' : ''}">${d.label || 'Camera ' + (i + 1)}</div>`
-                    ).join('') || 'No cameras found';
-                }
-
-                // Prioritize DroidCam if found and we haven't manually switched
-                const droidCamIndex = videoDevices.findIndex(d => d.label.toLowerCase().includes('droidcam'));
-                if (droidCamIndex !== -1 && currentDeviceIndex === 0) {
-                    currentDeviceIndex = droidCamIndex;
-                    console.log('DroidCam matched at index:', currentDeviceIndex);
-                }
-            } catch (err) {
-                console.error('Error enumerating devices:', err);
-                if (deviceListDiv) deviceListDiv.textContent = 'Error scanning devices';
-            }
-        }
-
-        async function startCamera(deviceId) {
-            console.log('Starting camera with deviceId:', deviceId);
-            if (currentStream) {
-                currentStream.getTracks().forEach(track => track.stop());
-            }
-
-            // Try with specific resolution first, then fallback
-            const constraintSets = [
-                { video: { deviceId: deviceId ? { exact: deviceId } : undefined, width: 640, height: 480 } },
-                { video: { deviceId: deviceId ? { exact: deviceId } : undefined } },
-                { video: true }
-            ];
-
-            let lastError = null;
-            for (const constraints of constraintSets) {
-                try {
-                    console.log('Trying constraints:', constraints);
-                    const stream = await navigator.mediaDevices.getUserMedia(constraints);
-                    currentStream = stream;
-                    video.srcObject = stream;
-                    await video.play();
-
+                cameraManager = new CameraManager(video, (stream) => {
                     const track = stream.getVideoTracks()[0];
                     if (cameraNameSpan) cameraNameSpan.textContent = track.label || 'Unknown Camera';
+
+                    // Sync dropdown if index changed (e.g. via fallback)
+                    if (cameraSelect && cameraManager.currentDeviceIndex !== -1) {
+                        cameraSelect.selectedIndex = cameraManager.currentDeviceIndex;
+                    }
 
                     if (!gestureDetector) {
                         gestureDetector = new GestureDetector(video, canvas);
@@ -271,63 +245,54 @@
 
                     const handStatus = document.getElementById('hand-status');
                     if (handStatus) handStatus.textContent = 'Camera Ready';
-                    console.log('Camera started successfully with label:', track.label);
-                    return; // Success
-                } catch (err) {
-                    lastError = err;
-                    console.warn('Failed with constraints:', constraints, err);
-                }
-            }
+                });
 
-            console.error('All camera constraint sets failed:', lastError);
-            const handStatus = document.getElementById('hand-status');
-            if (handStatus) handStatus.textContent = 'Camera Fallback Error';
-        }
+                const updateCameraList = async () => {
+                    try {
+                        const devices = await cameraManager.getDevices();
+                        cameraSelect.innerHTML = '';
 
-        // Initialize application
-        async function initApp() {
-            try {
-                // Request permission first to get device labels
-                console.log('Requesting initial camera permission...');
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                stream.getTracks().forEach(t => t.stop());
+                        if (!devices || devices.length === 0) {
+                            cameraSelect.innerHTML = '<option value="">No cameras found</option>';
+                            return;
+                        }
 
-                await getDevices();
-                if (videoDevices.length > 0) {
-                    await startCamera(videoDevices[currentDeviceIndex].deviceId);
-                } else {
-                    if (deviceListDiv) deviceListDiv.textContent = 'No cameras detected';
-                    console.error('No video devices returned by enumerateDevices');
-                }
+                        devices.forEach((device, i) => {
+                            const opt = document.createElement('option');
+                            opt.value = device.deviceId;
+                            opt.textContent = device.label || `Camera ${i + 1}`;
+                            cameraSelect.appendChild(opt);
+                        });
+
+                        const targetId = cameraManager.getBestCamera();
+                        if (targetId) {
+                            const idx = devices.findIndex(d => d.deviceId === targetId);
+                            if (idx !== -1) cameraSelect.selectedIndex = idx;
+                            await cameraManager.startCamera(targetId);
+                        }
+                    } catch (listErr) {
+                        console.error('updateCameraList failed:', listErr);
+                        cameraSelect.innerHTML = '<option value="">Error detecting cameras</option>';
+                    }
+                };
+
+                await updateCameraList();
+
+                cameraSelect.addEventListener('change', async () => {
+                    if (cameraSelect.value) {
+                        await cameraManager.startCamera(cameraSelect.value);
+                    }
+                });
+
             } catch (err) {
                 console.error('Initialization error:', err);
-                alert('Camera permission is required for this app.');
+                const cameraSelect = document.getElementById('camera-select');
+                if (cameraSelect) cameraSelect.innerHTML = '<option value="">Access Denied</option>';
             }
         }
 
         initApp();
 
-        // Switch camera logic
-        if (switchBtn) {
-            switchBtn.addEventListener('click', async () => {
-                if (videoDevices.length > 1) {
-                    currentDeviceIndex = (currentDeviceIndex + 1) % videoDevices.length;
-                    console.log('Switching to device index:', currentDeviceIndex);
-                    await startCamera(videoDevices[currentDeviceIndex].deviceId);
-                    await getDevices(); // Refresh list to update highlight
-                } else {
-                    // Try refreshing devices in case one was plugged in
-                    await getDevices();
-                    if (videoDevices.length > 1) {
-                        switchBtn.click();
-                    } else {
-                        alert('Only one camera detected.');
-                    }
-                }
-            });
-        }
-
-        // Initialize detectors after metadata is loaded
         video.addEventListener('loadedmetadata', () => {
             console.log('Video metadata loaded');
         });

@@ -29,36 +29,43 @@
         <canvas id="output"></canvas>
     </div>
 
-    <!-- Status Panel -->
-    <div id="status-panel">
-        <h3>Gesture Status</h3>
-        <div class="status-item">
-            <label>Select Camera:</label>
-            <select id="camera-select"
-                style="width: 100%; margin-top: 5px; padding: 8px; background: #333; color: white; border: 1px solid #444; border-radius: 4px; cursor: pointer;">
-                <option>Scanning...</option>
-            </select>
+    <!-- Side Panel Container -->
+    <div class="side-panel-container">
+        <!-- Status Panel -->
+        <div id="status-panel">
+            <h3>Gesture Status</h3>
+            <div class="status-item">
+                <label>Select Camera:</label>
+                <select id="camera-select"
+                    style="width: 100%; margin-top: 5px; padding: 4px; background: #f8fafc; color: #333; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 0.85em;">
+                    <option>Scanning...</option>
+                </select>
+            </div>
+
+            <div class="status-item">
+                <label>Hand Presence:</label>
+                <span id="hand-status">Initializing...</span>
+            </div>
+            <div class="status-item">
+                <label>Active Gesture:</label>
+                <span id="gesture-status">None</span>
+            </div>
+            <div class="status-item">
+                <label>Last Event:</label>
+                <span id="action-status">None</span>
+            </div>
         </div>
 
-        <div class="status-item">
-            <label>Hand Detection:</label>
-            <span id="hand-status">Initializing...</span>
-        </div>
-        <div class="status-item">
-            <label>Current Gesture:</label>
-            <span id="gesture-status">None</span>
-        </div>
-        <div class="status-item">
-            <label>Current Camera:</label>
-            <span id="camera-name">None</span>
-        </div>
-        <div class="status-item">
-            <label>Detected Devices:</label>
-            <div id="device-list" style="font-size: 0.8em; color: #666; margin-top: 5px;">Scanning...</div>
-        </div>
-        <div class="status-item">
-            <label>Last Action:</label>
-            <span id="action-status">None</span>
+        <!-- Desktop Tips Panel (Hidden on very small mobile if desired, but responsive by default) -->
+        <div class="instructions-panel">
+            <h4>Quick Guide</h4>
+            <ul>
+                <li><strong>✋ Open Hand:</strong> Activate detection</li>
+                <li><strong>☝️ Finger Flick:</strong> Scroll Up/Down</li>
+                <li><strong>🖐️ Palm Tilt:</strong> Auto-Scroll (Hold)</li>
+                <li><strong>↔️ Side Swipe:</strong> Snap Sections</li>
+                <li><strong>🤌 Index Pinch:</strong> Click Center</li>
+            </ul>
         </div>
     </div>
 
@@ -222,31 +229,31 @@
                 });
 
                 const updateCameraList = async () => {
-                    const devices = await cameraManager.getDevices();
-                    cameraSelect.innerHTML = '';
+                    try {
+                        const devices = await cameraManager.getDevices();
+                        cameraSelect.innerHTML = '';
 
-                    if (devices.length === 0) {
-                        cameraSelect.innerHTML = '<option>No cameras found</option>';
-                        return;
-                    }
+                        if (!devices || devices.length === 0) {
+                            cameraSelect.innerHTML = '<option value="">No cameras found</option>';
+                            return;
+                        }
 
-                    devices.forEach((device, i) => {
-                        const opt = document.createElement('option');
-                        opt.value = device.deviceId;
-                        opt.textContent = device.label || `Camera ${i + 1}`;
-                        cameraSelect.appendChild(opt);
-                    });
+                        devices.forEach((device, i) => {
+                            const opt = document.createElement('option');
+                            opt.value = device.deviceId;
+                            opt.textContent = device.label || `Camera ${i + 1}`;
+                            cameraSelect.appendChild(opt);
+                        });
 
-                    // 2. Select best available (DroidCam priority)
-                    const targetDeviceId = cameraManager.getBestCamera();
-
-                    if (targetDeviceId) {
-                        const idx = devices.findIndex(d => d.deviceId === targetDeviceId);
-                        if (idx !== -1) cameraSelect.selectedIndex = idx;
-                        await cameraManager.startCamera(targetDeviceId);
-                    } else {
-                        if (deviceListDiv) deviceListDiv.textContent = 'No cameras detected';
-                        console.error('No video devices found');
+                        const targetDeviceId = cameraManager.getBestCamera();
+                        if (targetDeviceId) {
+                            const idx = devices.findIndex(d => d.deviceId === targetDeviceId);
+                            if (idx !== -1) cameraSelect.selectedIndex = idx;
+                            await cameraManager.startCamera(targetDeviceId);
+                        }
+                    } catch (listErr) {
+                        console.error('updateCameraList failed:', listErr);
+                        cameraSelect.innerHTML = '<option value="">Error detecting cameras</option>';
                     }
                 };
 
@@ -260,7 +267,8 @@
 
             } catch (err) {
                 console.error('Initialization error:', err);
-                alert('Camera permission is required for this app.');
+                const cameraSelect = document.getElementById('camera-select');
+                if (cameraSelect) cameraSelect.innerHTML = '<option value="">Access Denied</option>';
                 if (handStatus) handStatus.textContent = 'Camera Error';
             }
         }

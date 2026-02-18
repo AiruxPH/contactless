@@ -7,170 +7,93 @@
     <title>Gesture Training - Contactless Navigation</title>
     <link rel="stylesheet" href="css/style.css">
     <style>
-        .split-view {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            height: calc(100vh - 100px);
-            padding: 20px;
+        /* Main Content logic to match global style */
+        #main-content {
+            padding-top: 80px;
+            max-width: 800px;
+            margin: 0 auto;
         }
 
-        .camera-section {
-            position: relative;
-            background: #000;
+        .training-container {
+            background: #fff;
             border-radius: 12px;
-            overflow: hidden;
-        }
-
-        .controls-section {
-            background: #ffffff;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            overflow-y: auto;
-        }
-
-        .action-card {
-            background: #f8f9fa;
-            border: 1px solid #e9ecef;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 15px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .action-card.active {
-            border-color: #4CAF50;
-            background: #e8f5e9;
-        }
-
-        .gesture-badge {
-            background: #e9ecef;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.9em;
-            font-weight: bold;
-            color: #495057;
-        }
-
-        .btn-record {
-            background: #007bff;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-
-        .btn-record:hover {
-            background: #0056b3;
-        }
-
-        .btn-record.recording {
-            background: #dc3545;
-            animation: pulse 1.5s infinite;
-        }
-
-        @keyframes pulse {
-            0% {
-                opacity: 1;
-            }
-
-            50% {
-                opacity: 0.5;
-            }
-
-            100% {
-                opacity: 1;
-            }
-        }
-
-        /* Named differently to avoid conflict with global #camera-container fixed style */
-        #training-camera-wrapper {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            border-radius: 12px;
-            overflow: hidden;
-        }
-
-        /* Nav Header */
-        header {
-            padding: 0 20px;
-            display: flex;
-            align-items: center;
-            height: 60px;
-            background: #333;
-            color: white;
-        }
-
-        .back-link {
-            color: white;
-            text-decoration: none;
-            margin-right: 20px;
-            font-weight: bold;
+            padding: 30px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+            margin-bottom: 40px;
         }
     </style>
 </head>
 
 <body>
-    <header>
-        <a href="index.html" class="back-link">← Back</a>
-        <h1>Gesture Training & Mapping</h1>
-    </header>
+    <div id="camera-container">
+        <video id="webcam" autoplay playsinline muted></video>
+        <canvas id="output"></canvas>
+    </div>
 
-    <div class="split-view">
-        <!-- Training Controls -->
-        <div class="controls-section">
+    <!-- Side Panel Container -->
+    <div class="side-panel-container">
+        <!-- Status Panel -->
+        <div id="status-panel">
+            <h3>Training Hub</h3>
+            <div class="status-item">
+                <label>Select Camera:</label>
+                <select id="camera-select"
+                    style="width: 100%; margin-top: 5px; padding: 4px; background: #fff; color: #333; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 0.85em;">
+                    <option>Scanning...</option>
+                </select>
+            </div>
+            <div class="status-item">
+                <label>Hand Presence:</label>
+                <span id="hand-status">Initializing...</span>
+            </div>
+            <div class="status-item">
+                <label>Last Detection:</label>
+                <span id="last-gesture">None</span>
+            </div>
+            <div id="recording-indicator"
+                style="display: none; color: #ff4444; font-weight: bold; margin-top: 5px; font-size: 0.8em; text-transform: uppercase;">
+                🔴 Recording Data...</div>
+        </div>
+
+        <!-- Instructions Panel -->
+        <div class="instructions-panel">
+            <h4>How to Record</h4>
+            <ul>
+                <li><strong>1. Click Record</strong> on an action card.</li>
+                <li><strong>2. Hold Pose</strong> for 3 seconds.</li>
+                <li><strong>3. Data Saved</strong> to your local browser.</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div id="main-content">
+        <header
+            style="margin-bottom: 30px; background: none; color: inherit; padding: 0; height: auto; display: flex; align-items: center;">
+            <a href="index.html" style="color: #38bdf8; text-decoration: none; font-weight: bold; margin-right: 15px;">←
+                Back</a>
+            <h1 style="margin:0; font-size: 2em; color: #1e293b;">Gesture Mapping</h1>
+        </header>
+
+        <div class="training-container">
             <h3>Navigation Actions</h3>
-            <p>Assign gestures to actions. Click "Record" and perform a gesture.</p>
+            <p style="color: #64748b; margin-bottom: 25px;">Fine-tune your experience by assigning custom hand poses to
+                navigation commands.</p>
 
             <div id="actions-list">
                 <!-- Items will be populated by JS -->
             </div>
 
-            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee;">
-                <h4>Settings</h4>
+            <div
+                style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center;">
                 <button id="reset-mappings-btn"
-                    style="background: #6c757d; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Reset
+                    style="background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600;">Reset
                     to Defaults</button>
-            </div>
-
-            <div id="feedback-log"
-                style="margin-top: 20px; padding: 10px; background: #f1f3f5; border-radius: 4px; font-family: monospace; max-height: 150px; overflow-y: auto;">
-                <div>> Waiting for gestures...</div>
-            </div>
-        </div>
-
-        <!-- Camera Feed -->
-        <div class="camera-section">
-            <!-- Visual Hand Cursor -->
-            <div id="hand-cursor"></div>
-
-            <div id="training-camera-wrapper">
-                <video id="webcam" autoplay playsinline muted
-                    style="width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1);"></video>
-                <canvas id="output"
-                    style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform: scaleX(-1);"></canvas>
-            </div>
-
-            <div id="status-overlay"
-                style="position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); color: white; padding: 10px; border-radius: 4px; z-index: 10;">
-                <div style="margin-bottom: 8px;">
-                    <select id="camera-select"
-                        style="background: #333; color: white; border: 1px solid #555; padding: 4px; border-radius: 4px; width: 100%; font-size: 0.85em;">
-                        <option value="">Loading Cameras...</option>
-                    </select>
+                <div id="feedback-log"
+                    style="padding: 10px 15px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-family: monospace; font-size: 0.85em; color: #64748b; flex: 1; margin-left: 20px; max-height: 80px; overflow-y: auto;">
+                    <div>Waiting for gestures...</div>
                 </div>
-                <div>Hand: <span id="hand-status">Initializing...</span></div>
-                <div>Last Gesture: <span id="last-gesture">None</span></div>
-                <div id="recording-indicator"
-                    style="display: none; color: #ff4444; font-weight: bold; margin-top: 5px;">🔴 RECORDING...</div>
             </div>
-
         </div>
     </div>
 
@@ -218,35 +141,36 @@
             });
 
             async function updateCameraList() {
+                try {
+                    const devices = await cameraManager.getDevices();
+                    cameraSelect.innerHTML = '';
 
-                const devices = await cameraManager.getDevices();
-                cameraSelect.innerHTML = '';
+                    if (!devices || devices.length === 0) {
+                        const opt = document.createElement('option');
+                        opt.textContent = 'No cameras found';
+                        cameraSelect.appendChild(opt);
+                        return;
+                    }
 
-                if (devices.length === 0) {
-                    const opt = document.createElement('option');
-                    opt.textContent = 'No cameras found';
-                    cameraSelect.appendChild(opt);
-                    return;
+                    devices.forEach(device => {
+                        const opt = document.createElement('option');
+                        opt.value = device.deviceId;
+                        opt.textContent = device.label || `Camera ${cameraSelect.length + 1}`;
+                        cameraSelect.appendChild(opt);
+                    });
+
+                    // Select best available (Native priority)
+                    const targetDeviceId = cameraManager.getBestCamera();
+
+                    if (targetDeviceId) {
+                        const selectedIndex = devices.findIndex(d => d.deviceId === targetDeviceId);
+                        if (selectedIndex !== -1) cameraSelect.selectedIndex = selectedIndex;
+                        await cameraManager.startCamera(targetDeviceId);
+                    }
+                } catch (err) {
+                    console.error('updateCameraList failed:', err);
+                    cameraSelect.innerHTML = '<option value="">Error detecting cameras</option>';
                 }
-
-                devices.forEach(device => {
-                    const opt = document.createElement('option');
-                    opt.value = device.deviceId;
-                    opt.textContent = device.label || `Camera ${cameraSelect.length + 1}`;
-                    cameraSelect.appendChild(opt);
-                });
-
-                // Select best available (DroidCam priority)
-                const targetDeviceId = cameraManager.getBestCamera();
-
-                if (targetDeviceId) {
-                    const selectedIndex = devices.findIndex(d => d.deviceId === targetDeviceId);
-                    if (selectedIndex !== -1) cameraSelect.selectedIndex = selectedIndex;
-                    await cameraManager.startCamera(targetDeviceId);
-                } else {
-                    console.error('No cameras found for initialization');
-                }
-
             }
 
             cameraSelect.addEventListener('change', async () => {

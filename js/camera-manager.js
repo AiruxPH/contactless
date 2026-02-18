@@ -9,33 +9,63 @@ export default class CameraManager {
 
     async getDevices() {
         try {
-            // Request permissions first to get labels
-            await navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
-                stream.getTracks().forEach(track => track.stop());
-            }).catch(e => console.warn('Permission request for labels failed:', e));
+            // Request permissions if labels are missing
+            const hasLabels = this.videoDevices.some(d => d.label);
+            if (!hasLabels) {
+                console.log('Requesting camera labels...');
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    stream.getTracks().forEach(track => track.stop());
+                } catch (e) {
+                    console.warn('Could not get labels via getUserMedia:', e);
+                }
+            }
 
             const devices = await navigator.mediaDevices.enumerateDevices();
             this.videoDevices = devices.filter(device => device.kind === 'videoinput');
-            console.log('Available video devices:', this.videoDevices);
 
+            // Filter out empty entries or system stubs if any
+            this.videoDevices = this.videoDevices.filter(d => d.deviceId !== '');
+
+            console.log('Discovered cameras:', this.videoDevices.map(d => d.label || 'Unknown Device'));
             return this.videoDevices;
         } catch (err) {
-            console.error('Error enumerating devices:', err);
-            return [];
+            console.error('getDevices failed:', err);
+            return this.videoDevices; // Return whatever we have
         }
     }
 
     getBestCamera() {
         if (this.videoDevices.length === 0) return null;
 
-        // Priority 1: DroidCam
-        const droidCam = this.videoDevices.find(d => d.label.toLowerCase().includes('droidcam'));
-        if (droidCam) {
-            this.currentDeviceIndex = this.videoDevices.indexOf(droidCam);
-            return droidCam.deviceId;
+        console.log('Finding best camera among:', this.videoDevices.map(d => d.label));
+
+        // Priority 1: Explicitly Native/Integrated Keywords
+        const nativeKeywords = ['integrated', 'face', 'front', 'built-in', 'facetime'];
+        const nativeCam = this.videoDevices.find(d =>
+            nativeKeywords.some(kw => d.label.toLowerCase().includes(kw))
+        );
+
+        if (nativeCam) {
+            console.log('Found native camera:', nativeCam.label);
+            this.currentDeviceIndex = this.videoDevices.indexOf(nativeCam);
+            return nativeCam.deviceId;
         }
 
-        // Priority 2: Fallback to the first available camera
+        // Priority 2: Any camera that is NOT virtual/external apps
+        const virtualKeywords = ['droidcam', 'obs', 'virtual', 'iriun', 'epoccam'];
+        const nonVirtualCam = this.videoDevices.find(d =>
+            !virtualKeywords.some(kw => d.label.toLowerCase().includes(kw))
+        );
+
+        if (nonVirtualCam) {
+            console.log('Found non-virtual camera:', nonVirtualCam.label);
+            this.currentDeviceIndex = this.videoDevices.indexOf(nonVirtualCam);
+            return nonVirtualCam.deviceId;
+        }
+
+        // Priority 3: Last resort - first available
+        console.log('Falling back to first available camera:', this.videoDevices[0].label);
         this.currentDeviceIndex = 0;
         return this.videoDevices[0].deviceId;
     }
