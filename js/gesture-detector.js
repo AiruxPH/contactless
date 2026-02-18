@@ -364,10 +364,11 @@ class GestureDetector {
             const yX = wPinkyMCP.x - wIndexMCP.x;
             const yZ = wPinkyMCP.z - wIndexMCP.z;
 
-            // atan2(depth, horizontal)
-            yawDegrees = Math.atan2(yZ, yX) * (180 / Math.PI);
+            // atan2(depth, horizontal) - Normalize X-span to ignore handedness flip here
+            yawDegrees = Math.atan2(yZ, Math.abs(yX)) * (180 / Math.PI);
 
             // Handedness Correction: Mirror Yaw for Left Hand
+            // User Spec: If 'Left', multiply by -1 to sync physical 'Tilting Right' values
             const handLabel = handedness ? handedness.categoryName : 'Right';
             if (handLabel === 'Left') {
                 yawDegrees = -yawDegrees;
