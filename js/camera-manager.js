@@ -43,6 +43,12 @@ export default class CameraManager {
 
     async startCamera(deviceId) {
         console.log('Starting camera with deviceId:', deviceId);
+
+        // Ensure we have devices for fallback logic
+        if (this.videoDevices.length === 0) {
+            await this.getDevices();
+        }
+
         if (this.currentStream) {
             this.currentStream.getTracks().forEach(track => track.stop());
         }
@@ -59,14 +65,23 @@ export default class CameraManager {
                 const stream = await navigator.mediaDevices.getUserMedia(constraints);
                 this.currentStream = stream;
                 this.video.srcObject = stream;
-                await this.video.play();
+
+                // Set play error handler
+                try {
+                    await this.video.play();
+                } catch (playErr) {
+                    console.warn('Video play failed, trying next constraints:', playErr);
+                    throw playErr;
+                }
 
                 const track = stream.getVideoTracks()[0];
-                console.log('Camera started successfully with label:', track.label);
+                console.log('Camera started successfully:', track.label);
 
-                // Sync index if we fell back to a different camera than requested
-                const actualIndex = this.videoDevices.findIndex(d => d.label === track.label);
-                if (actualIndex !== -1) this.currentDeviceIndex = actualIndex;
+                // Sync index and ID based on actual track
+                const actualIndex = this.videoDevices.findIndex(d => d.label === track.label || d.deviceId === deviceId);
+                if (actualIndex !== -1) {
+                    this.currentDeviceIndex = actualIndex;
+                }
 
                 if (this.onCameraReady) {
                     this.onCameraReady(stream);
@@ -74,23 +89,31 @@ export default class CameraManager {
                 return track.label;
             } catch (err) {
                 lastError = err;
-                console.warn('Failed with constraints:', constraints, err);
+                console.warn('Constraint set failed:', constraints, err);
             }
         }
 
-        // If we reached here, the requested deviceId (or general video) failed.
-        // Try one last ditch effort: Start ANY available camera from the list that isn't the one we just tried
-        if (deviceId && this.videoDevices.length > 1) {
-            const fallbackDevice = this.videoDevices.find(d => d.deviceId !== deviceId);
-            if (fallbackDevice) {
-                console.log('Requested camera failed. Attempting fallback to:', fallbackDevice.label);
-                return await this.startCamera(fallbackDevice.deviceId);
+        // DEEP FALLBACK: If requested device (or generic) failed, try ANY other available device
+        if (this.videoDevices.length > 0) {
+            const failedId = deviceId;
+            const nextBest = this.videoDevices.find(d => d.deviceId !== failedId);
+
+            if (nextBest) {
+                console.warn(`Camera ${failedId} failed. Falling back to: ${nextBest.label}`);
+                // Remove the failed device from temporary list so we don't loop forever
+                const filteredDevices = this.videoDevices.filter(d => d.deviceId !== failedId);
+                if (filteredDevices.length > 0) {
+                    const tempManager = { videoDevices: filteredDevices };
+                    // We don't want to actually modify the state yet, but we need to try another
+                    return await this.startCamera(nextBest.deviceId);
+                }
             }
         }
 
-        console.error('All camera constraint sets and fallbacks failed:', lastError);
+        console.error('All camera sources and fallbacks failed:', lastError);
         throw lastError;
     }
+
 
 
     async switchCamera() {

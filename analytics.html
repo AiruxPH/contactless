@@ -330,9 +330,7 @@
                 cameraSelect.innerHTML = '';
 
                 if (devices.length === 0) {
-                    const opt = document.createElement('option');
-                    opt.textContent = 'No cameras found';
-                    cameraSelect.appendChild(opt);
+                    cameraSelect.innerHTML = '<option>No cameras found</option>';
                     return;
                 }
 
@@ -343,18 +341,24 @@
                     cameraSelect.appendChild(opt);
                 });
 
-                // Set initial selection to match startCamera
-                const targetDeviceId = cameraManager.getBestCamera();
+                // Set callback for status and sync
+                cameraManager.onCameraReady = (stream) => {
+                    const track = stream.getVideoTracks()[0];
+                    const cameraStatus = document.getElementById('camera-status');
+                    if (cameraStatus) cameraStatus.textContent = `Active: ${track.label}`;
 
-                if (targetDeviceId) {
-                    const selectedIndex = devices.findIndex(d => d.deviceId === targetDeviceId);
-                    if (selectedIndex !== -1) cameraSelect.selectedIndex = selectedIndex;
-                    await cameraManager.startCamera(targetDeviceId);
-                } else {
-                    console.error('No cameras found for initialization');
+                    if (cameraSelect && cameraManager.currentDeviceIndex !== -1) {
+                        cameraSelect.selectedIndex = cameraManager.currentDeviceIndex;
+                    }
+                };
+
+                const targetId = cameraManager.getBestCamera();
+                if (targetId) {
+                    const idx = devices.findIndex(d => d.deviceId === targetId);
+                    if (idx !== -1) cameraSelect.selectedIndex = idx;
+                    await cameraManager.startCamera(targetId);
                 }
                 gestureDetector.applyMirrorEffect();
-
             };
 
             try {

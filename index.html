@@ -21,9 +21,14 @@
     <!-- Status Panel -->
     <div id="status-panel">
         <h3>Gesture Status</h3>
-        <button id="switch-camera-btn"
-            style="width: 100%; margin-bottom: 15px; padding: 10px; cursor: pointer; background: #333; color: white; border: none; border-radius: 4px;">Switch
-            Camera</button>
+        <div class="status-item">
+            <label>Select Camera:</label>
+            <select id="camera-select"
+                style="width: 100%; margin-top: 5px; padding: 8px; background: #333; color: white; border: 1px solid #444; border-radius: 4px; cursor: pointer;">
+                <option>Scanning...</option>
+            </select>
+        </div>
+
         <div class="status-item">
             <label>Hand Detection:</label>
             <span id="hand-status">Initializing...</span>
@@ -184,39 +189,63 @@
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true });
                 stream.getTracks().forEach(t => t.stop());
 
+                const cameraSelect = document.getElementById('camera-select');
+
                 cameraManager = new CameraManager(video, (stream) => {
                     const track = stream.getVideoTracks()[0];
                     if (cameraNameSpan) cameraNameSpan.textContent = track.label || 'Unknown Camera';
+
+                    // Sync dropdown if index changed (e.g. via fallback)
+                    if (cameraSelect && cameraManager.currentDeviceIndex !== -1) {
+                        cameraSelect.selectedIndex = cameraManager.currentDeviceIndex;
+                    }
 
                     if (!gestureDetector) {
                         gestureDetector = new GestureDetector(video, canvas);
                         navigationController = new NavigationController(gestureDetector);
                     } else {
-                        gestureDetector.video = video; // Update video element reference if needed
+                        gestureDetector.video = video;
                     }
 
                     if (handStatus) handStatus.textContent = 'Camera Ready';
                 });
 
-                await cameraManager.getDevices();
+                const updateCameraList = async () => {
+                    const devices = await cameraManager.getDevices();
+                    cameraSelect.innerHTML = '';
 
-                // 2. Select best available (DroidCam priority)
-                const targetDeviceId = cameraManager.getBestCamera();
+                    if (devices.length === 0) {
+                        cameraSelect.innerHTML = '<option>No cameras found</option>';
+                        return;
+                    }
 
-                // Update UI list
-                if (deviceListDiv) {
-                    deviceListDiv.innerHTML = cameraManager.videoDevices.map((d, i) =>
-                        `<div style="${i === cameraManager.currentDeviceIndex ? 'color: #4CAF50; font-weight: bold;' : ''}">${d.label || 'Camera ' + (i + 1)}</div>`
-                    ).join('') || 'No cameras found';
-                }
+                    devices.forEach((device, i) => {
+                        const opt = document.createElement('option');
+                        opt.value = device.deviceId;
+                        opt.textContent = device.label || `Camera ${i + 1}`;
+                        cameraSelect.appendChild(opt);
+                    });
 
-                if (targetDeviceId) {
-                    await cameraManager.startCamera(targetDeviceId);
-                } else {
-                    if (deviceListDiv) deviceListDiv.textContent = 'No cameras detected';
-                    console.error('No video devices found');
-                }
+                    // 2. Select best available (DroidCam priority)
+                    const targetDeviceId = cameraManager.getBestCamera();
 
+                    if (targetDeviceId) {
+                        const idx = devices.findIndex(d => d.deviceId === targetDeviceId);
+                        if (idx !== -1) cameraSelect.selectedIndex = idx;
+                        await cameraManager.startCamera(targetDeviceId);
+                    } else {
+                        if (deviceListDiv) deviceListDiv.textContent = 'No cameras detected';
+                        console.error('No video devices found');
+                    }
+                };
+
+                await updateCameraList();
+
+                cameraSelect.addEventListener('change', async () => {
+                    if (cameraSelect.value) {
+                        await cameraManager.startCamera(cameraSelect.value);
+                    }
+                });
 
             } catch (err) {
                 console.error('Initialization error:', err);
@@ -227,13 +256,6 @@
 
         initApp();
 
-        // Switch camera logic
-        if (switchBtn) {
-            switchBtn.addEventListener('click', async () => {
-                await cameraManager.switchCamera();
-                await cameraManager.getDevices(); // Refresh list to update highlight
-            });
-        }
 
         // Initialize detectors after metadata is loaded
         video.addEventListener('loadedmetadata', () => {

@@ -183,13 +183,23 @@
         const canvas = document.getElementById('output');
         const handStatus = document.getElementById('hand-status');
         const lastGesture = document.getElementById('last-gesture');
+        const cameraSelect = document.getElementById('camera-select'); // Moved up for broader scope
 
         let cameraManager = null;
         let gestureDetector = null;
         let gestureRecorder = null;
+        let cameraName = null; // Assuming cameraName might be used elsewhere or will be added to HTML
 
         async function init() {
             cameraManager = new CameraManager(video, (stream) => {
+                const track = stream.getVideoTracks()[0];
+                if (cameraName) cameraName.textContent = track.label;
+
+                // Sync dropdown if index changed (e.g. via fallback)
+                if (cameraSelect && cameraManager.currentDeviceIndex !== -1) {
+                    cameraSelect.selectedIndex = cameraManager.currentDeviceIndex;
+                }
+
                 if (!gestureDetector) {
                     gestureDetector = new GestureDetector(video, canvas);
 
@@ -207,10 +217,8 @@
                 handStatus.textContent = 'Camera Ready';
             });
 
-            // Camera Selection Logic
-            const cameraSelect = document.getElementById('camera-select');
-
             async function updateCameraList() {
+
                 const devices = await cameraManager.getDevices();
                 cameraSelect.innerHTML = '';
 
