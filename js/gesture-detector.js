@@ -57,34 +57,39 @@ class GestureDetector {
         if (!this.isDetecting || !this.handLandmarker) return;
 
         const detect = async () => {
-            if (this.video.readyState === this.video.HAVE_ENOUGH_DATA) {
-                // Set canvas size to match video
-                if (this.canvas.width !== this.video.videoWidth) {
-                    console.log(`Video ready! Resolution: ${this.video.videoWidth}x${this.video.videoHeight}`);
-                    this.canvas.width = this.video.videoWidth;
-                    this.canvas.height = this.video.videoHeight;
+            try {
+                if (this.video.readyState === this.video.HAVE_ENOUGH_DATA) {
+                    // Set canvas size to match video
+                    if (this.canvas.width !== this.video.videoWidth) {
+                        console.log(`Video ready! Resolution: ${this.video.videoWidth}x${this.video.videoHeight}`);
+                        this.canvas.width = this.video.videoWidth;
+                        this.canvas.height = this.video.videoHeight;
+                    }
+
+                    // Clear canvas
+                    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+                    // Detect hands
+                    const startTimeMs = performance.now();
+                    const results = this.handLandmarker.detectForVideo(this.video, startTimeMs);
+
+                    if (results.landmarks && results.landmarks.length > 0) {
+                        // Draw hand landmarks
+                        this.drawHandLandmarks(results.landmarks[0]);
+
+                        // Detect gestures
+                        this.detectGesture(results.landmarks[0]);
+
+                        this.emitStatus('handDetected', true);
+                    } else {
+                        this.emitStatus('handDetected', false);
+                        this.lastHandPosition = null;
+                        this.lastPalmAngle = null; // Reset palm angle tracking
+                    }
                 }
-
-                // Clear canvas
-                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-
-                // Detect hands
-                const startTimeMs = performance.now();
-                const results = this.handLandmarker.detectForVideo(this.video, startTimeMs);
-
-                if (results.landmarks && results.landmarks.length > 0) {
-                    // Draw hand landmarks
-                    this.drawHandLandmarks(results.landmarks[0]);
-
-                    // Detect gestures
-                    this.detectGesture(results.landmarks[0]);
-
-                    this.emitStatus('handDetected', true);
-                } else {
-                    this.emitStatus('handDetected', false);
-                    this.lastHandPosition = null;
-                    this.lastPalmAngle = null; // Reset palm angle tracking
-                }
+            } catch (error) {
+                console.error("Frame processing error:", error);
+                // Continue loop even on error
             }
 
             if (this.isDetecting) {
