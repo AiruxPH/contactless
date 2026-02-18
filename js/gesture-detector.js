@@ -384,6 +384,21 @@ class GestureDetector {
         }
 
         this.lastHandPosition = currentPosition;
+
+        // Emit continuous frame data
+        this.emitHandFrame({
+            landmarks,
+            cursor: { x: (1 - indexTip.x) * window.innerWidth, y: indexTip.y * window.innerHeight },
+            pinchDistance,
+            isPinching: this.isPinching,
+            handOpen: this.isHandOpen(landmarks)
+        });
+    }
+
+    emitHandFrame(data) {
+        window.dispatchEvent(new CustomEvent('handFrame', {
+            detail: data
+        }));
     }
 
     emitGesture(gesture, data = null) {

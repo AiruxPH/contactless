@@ -28,19 +28,15 @@ export default class MouseController {
             this.handleGesture(gesture, data);
         });
 
-        // We hook into the detector's raw landmark drawing or add a new listener?
-        // GestureDetector doesn't emit raw landmarks publicly in a stream. 
-        // We might need to modify GestureDetector to emit 'frame' event or similar.
-        // For now, let's rely on reading the position from the cursor element update in GestureDetector
-        // OR better: Listen to the 'handDetected' event ?? No, that's status.
-        // Let's monkey-patch or listen to the custom event 'handGesture' ? No, that's for gestures.
+        // Listen to continuous frame data
+        window.addEventListener('handFrame', (e) => {
+            this.handleFrame(e.detail);
+        });
+    }
 
-        // Since GestureDetector handles the cursor drawing internally, we can read the cursor's style left/top
-        // But that's reading DOM which is slow. 
-        // Best approach: Add a callback to GestureDetector for "onFrame" or "onLandmarks".
-
-        // **Self-Correction**: GestureDetector already moves the #hand-cursor element.
-        // We just need to trigger clicks/drags based on that position.
+    handleFrame(data) {
+        this.currentPinchDistance = data.pinchDistance;
+        this.currentHandOpen = data.handOpen;
     }
 
     handleGesture(gesture) {
@@ -113,18 +109,37 @@ export default class MouseController {
             this.cursorY = rect.top + rect.height / 2;
         }
 
-        // Handle Dragging / Zooming
-        if (this.isDragging && this.zoomElement) {
-            const deltaY = this.dragStartY - this.cursorY;
-            // moving up (positive delta) -> Zoom In
-            // moving down (negative delta) -> Zoom Out
+        // Check if hovering zoom target
+        const elem = document.elementFromPoint(this.cursorX, this.cursorY);
+        const isZoomTarget = elem && elem.closest('#zoom-target');
 
-            const zoomSensitivity = 0.005;
-            let newZoom = this.initialZoom + (deltaY * zoomSensitivity);
-            newZoom = Math.min(Math.max(newZoom, 0.5), 3); // Clamp 0.5x to 3x
+        if (isZoomTarget && this.currentPinchDistance !== undefined) {
+            // Zoom Logic: Hand Aperture
+            // Distance ~0.03 (Closed) to ~0.15+ (Open)
 
-            this.currentZoom = newZoom;
-            this.zoomElement.style.transform = `scale(${newZoom})`;
+            const minD = 0.03;
+            const maxD = 0.15;
+            const clampedD = Math.min(Math.max(this.currentPinchDistance, minD), maxD);
+
+            // Scale Range: 0.5 to 2.5
+            const t = (clampedD - minD) / (maxD - minD); // 0 to 1
+            const targetZoom = 0.5 + (t * 2.0); // 0.5 to 2.5
+
+            // Smooth lerp for visual stability
+            const lerpFactor = 0.1;
+            this.currentZoom = this.currentZoom + (targetZoom - this.currentZoom) * lerpFactor;
+
+            if (this.zoomElement) {
+                this.zoomElement.style.transform = `scale(${this.currentZoom.toFixed(2)})`;
+            }
+
+            // Update cursor state text for debug
+            const stateEl = document.getElementById('cursor-state');
+            if (stateEl) stateEl.textContent = `ZOOMING (${Math.round(t * 100)}%)`;
+        } else {
+            // Reset state text
+            const stateEl = document.getElementById('cursor-state');
+            if (stateEl) stateEl.textContent = this.isDown ? 'CLICKING' : 'HOVER';
         }
     }
 
