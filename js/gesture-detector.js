@@ -368,6 +368,8 @@ class GestureDetector {
     }
 
     detectGesture(landmarks, worldLandmarks, handedness) {
+        if (!landmarks || landmarks.length < 21) return;
+
         const now = Date.now();
         const wrist = landmarks[0];
         const indexTip = landmarks[8];
@@ -632,6 +634,9 @@ class GestureDetector {
         // ISOLATION RULE: Only click if Ring and (unless zooming) Middle are extended
         const ringTip = landmarks[16];
         const ringMCP = landmarks[13];
+
+        if (!ringTip || !ringMCP) return; // Isolation Guard
+
         const ringDistance = this.getNormalizedDistance(ringTip, ringMCP, scale);
 
         // Required distances for "Open" fingers

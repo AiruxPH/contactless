@@ -75,6 +75,7 @@ class NavigationController {
                 if (isPaused) {
                     this.lastAction = 'SYSTEM PAUSED 🔒';
                     this.updateStatus();
+                    return; // Strict synchronization
                 }
                 return;
             }
@@ -133,7 +134,10 @@ class NavigationController {
             this.velocityX *= this.friction;
             this.velocityY *= this.friction;
 
-            // 2. NOISE GATE: Stop micro-drifting (Increased threshold for rock-solid stability)
+            // 2. NOISE GATE: Stop micro-drifting (Strict component-wise floor)
+            if (Math.abs(this.velocityX) < 0.2) this.velocityX = 0;
+            if (Math.abs(this.velocityY) < 0.2) this.velocityY = 0;
+
             let speed = Math.sqrt(this.velocityX * this.velocityX + this.velocityY * this.velocityY);
             if (speed < 2.0) {
                 this.velocityX = 0;
@@ -148,7 +152,7 @@ class NavigationController {
             }
 
             // 3. Application of Velocity
-            if (speed > 0.1) {
+            if (speed > 0) {
                 const gallery = document.querySelector('.gallery-stage');
                 if (gallery && Math.abs(this.velocityX) > 0.1) {
                     gallery.scrollBy({ left: this.velocityX, behavior: 'auto' });

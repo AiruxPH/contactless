@@ -159,6 +159,7 @@ export default class MouseController {
             // Force target to be current position to prevent "drift" when unpausing
             this.targetX = this.cursorX;
             this.targetY = this.cursorY;
+            if (this.cursor) this.cursor.style.transition = 'none'; // CRITICAL: Stop hardware-accelerated jitter
             return;
         }
 
