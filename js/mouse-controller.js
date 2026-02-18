@@ -4,14 +4,19 @@ export default class MouseController {
         this.cursor = document.getElementById('hand-cursor');
 
         // State
-        this.cursorX = 0;
-        this.cursorY = 0;
+        this.cursorX = window.innerWidth / 2;
+        this.cursorY = window.innerHeight / 2;
+        this.targetX = window.innerWidth / 2;
+        this.targetY = window.innerHeight / 2;
+
         this.isDown = false;
         this.isDragging = false;
 
-        // Smooth Cursor
-        this.targetX = 0;
-        this.targetY = 0;
+        // Physics
+        this.smoothingFactor = 0.2; // 0.2 = heavy smoothing
+        this.clickLockTime = 0;
+        this.lockDuration = 150; // ms
+        this.lockedCoords = null;
 
         // Zoom state
         this.zoomElement = document.getElementById('zoom-target');
@@ -21,7 +26,12 @@ export default class MouseController {
     }
 
     init() {
-        // High frequency loop for interactions
+        // Disable built-in detector cursor to take full control
+        if (this.gestureDetector) {
+            this.gestureDetector.enableVisualCursor = false;
+        }
+
+        // High frequency loop for interactions & rendering
         this.updateLoop();
 
         this.gestureDetector.onGesture((gesture, data) => {
@@ -37,6 +47,12 @@ export default class MouseController {
     handleFrame(data) {
         this.currentPinchDistance = data.pinchDistance;
         this.currentHandOpen = data.handOpen;
+
+        // Update raw target from detector
+        if (data.cursor) {
+            this.targetX = data.cursor.x;
+            this.targetY = data.cursor.y;
+        }
     }
 
     handleGesture(gesture) {
@@ -49,6 +65,10 @@ export default class MouseController {
 
     startInteraction() {
         this.isDown = true;
+
+        // Lock cursor
+        this.clickLockTime = Date.now();
+        this.lockedCoords = { x: this.cursorX, y: this.cursorY };
 
         // Trigger generic click
         const elem = this.getElementUnderCursor();
@@ -100,13 +120,52 @@ export default class MouseController {
     updateLoop() {
         requestAnimationFrame(() => this.updateLoop());
 
-        // Read cursor position from DOM (since GestureDetector updates it)
-        // Ideally we'd get this from data, but this works for now without editing GestureDetector heavily
+        // 1. Click Locking
+        if (this.clickLockTime > 0 && Date.now() - this.clickLockTime < this.lockDuration) {
+            if (this.lockedCoords) {
+                this.targetX = this.lockedCoords.x;
+                this.targetY = this.lockedCoords.y;
+            }
+        }
+
+        // 2. Magnetic Targets
+        const magnetRange = 40;
+        const magnets = document.querySelectorAll('.target-button, .action-card, a');
+        let magnetized = false;
+
+        if (!this.isDragging) {
+            for (const magnet of magnets) {
+                const rect = magnet.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                const dist = Math.hypot(this.targetX - centerX, this.targetY - centerY);
+
+                if (dist < magnetRange) {
+                    this.targetX += (centerX - this.targetX) * 0.15;
+                    this.targetY += (centerY - this.targetY) * 0.15;
+                    magnetized = true;
+                    break;
+                }
+            }
+        }
+
+        // 3. EMA Smoothing
+        this.cursorX += (this.targetX - this.cursorX) * this.smoothingFactor;
+        this.cursorY += (this.targetY - this.cursorY) * this.smoothingFactor;
+
+        // 4. Update Cursor DOM
         if (this.cursor) {
-            const rect = this.cursor.getBoundingClientRect();
-            // Center of the cursor
-            this.cursorX = rect.left + rect.width / 2;
-            this.cursorY = rect.top + rect.height / 2;
+            this.cursor.style.left = `${this.cursorX}px`;
+            this.cursor.style.top = `${this.cursorY}px`;
+            this.cursor.style.display = 'block';
+
+            // 5. Visual Polish
+            const pinchStrength = Math.max(0, 1 - ((this.currentPinchDistance || 1) * 2));
+            const glowSize = 10 + (pinchStrength * 20);
+            const glowColor = this.isDown ? 'rgba(0, 255, 0, 0.8)' : `rgba(0, 242, 254, ${0.4 + pinchStrength * 0.6})`;
+            this.cursor.style.boxShadow = `0 0 ${glowSize}px ${glowColor}`;
+
+            this.cursor.style.transform = magnetized ? 'translate(-50%, -50%) scale(1.2)' : 'translate(-50%, -50%) scale(1.0)';
         }
 
         // Check if hovering zoom target
@@ -114,18 +173,12 @@ export default class MouseController {
         const isZoomTarget = elem && elem.closest('#zoom-target');
 
         if (isZoomTarget && this.currentPinchDistance !== undefined) {
-            // Zoom Logic: Hand Aperture
-            // Distance ~0.03 (Closed) to ~0.15+ (Open)
-
             const minD = 0.03;
             const maxD = 0.15;
             const clampedD = Math.min(Math.max(this.currentPinchDistance, minD), maxD);
+            const t = (clampedD - minD) / (maxD - minD);
+            const targetZoom = 0.5 + (t * 2.0);
 
-            // Scale Range: 0.5 to 2.5
-            const t = (clampedD - minD) / (maxD - minD); // 0 to 1
-            const targetZoom = 0.5 + (t * 2.0); // 0.5 to 2.5
-
-            // Smooth lerp for visual stability
             const lerpFactor = 0.1;
             this.currentZoom = this.currentZoom + (targetZoom - this.currentZoom) * lerpFactor;
 
@@ -133,11 +186,9 @@ export default class MouseController {
                 this.zoomElement.style.transform = `scale(${this.currentZoom.toFixed(2)})`;
             }
 
-            // Update cursor state text for debug
             const stateEl = document.getElementById('cursor-state');
             if (stateEl) stateEl.textContent = `ZOOMING (${Math.round(t * 100)}%)`;
         } else {
-            // Reset state text
             const stateEl = document.getElementById('cursor-state');
             if (stateEl) stateEl.textContent = this.isDown ? 'CLICKING' : 'HOVER';
         }

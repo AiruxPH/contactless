@@ -12,6 +12,7 @@ class GestureDetector {
         this.gestureCallbacks = [];
         this.lastGestureTime = 0;
         this.gestureCooldown = 600; // ms between gestures (reduced for better responsiveness)
+        this.enableVisualCursor = true; // Default to true, can be disabled by controllers
 
         this.init();
     }
@@ -97,30 +98,34 @@ class GestureDetector {
     drawHandLandmarks(landmarks) {
         const ctx = this.ctx;
 
-        // Visual Cursor Logic
-        const cursor = document.getElementById('hand-cursor');
-        if (cursor) {
-            // Index finger tip is landmark 8
-            const indexTip = landmarks[8];
-            // Mirror X coordinate for intuitive cursor movement
-            const screenX = (1 - indexTip.x) * window.innerWidth;
-            const screenY = indexTip.y * window.innerHeight;
+        // Visual Cursor Logic (Built-in)
+        // Can be disabled if an external controller (like MouseController) wants to handle smoothing/physics
+        if (this.enableVisualCursor) {
+            const cursor = document.getElementById('hand-cursor');
+            if (cursor) {
+                // Index finger tip is landmark 8
+                const indexTip = landmarks[8];
+                // Mirror X coordinate for intuitive cursor movement
+                const screenX = (1 - indexTip.x) * window.innerWidth;
+                const screenY = indexTip.y * window.innerHeight;
 
-            cursor.style.left = `${screenX}px`;
-            cursor.style.top = `${screenY}px`;
-            cursor.classList.add('active');
+                cursor.style.left = `${screenX}px`;
+                cursor.style.top = `${screenY}px`;
+                cursor.classList.add('active');
 
-            // Add pinching class if thumb and index are close
-            const thumbTip = landmarks[4];
-            const distance = Math.sqrt(
-                Math.pow(indexTip.x - thumbTip.x, 2) +
-                Math.pow(indexTip.y - thumbTip.y, 2)
-            );
+                // Add pinching class if thumb and index are close
+                const thumbTip = landmarks[4];
+                const distance = Math.sqrt(
+                    Math.pow(indexTip.x - thumbTip.x, 2) +
+                    Math.pow(indexTip.y - thumbTip.y, 2)
+                );
 
-            if (distance < 0.05) {
-                cursor.classList.add('pinching');
-            } else {
-                cursor.classList.remove('pinching');
+                // Use a generic visual threshold for the basic cursor
+                if (distance < 0.05) {
+                    cursor.classList.add('pinching');
+                } else {
+                    cursor.classList.remove('pinching');
+                }
             }
         }
 
@@ -369,11 +374,18 @@ class GestureDetector {
         // PINCH DETECTION: Check if thumb (4) and index (8) are close
         const thumbTip = landmarks[4];
         const indexTipMark = landmarks[8];
-        const pinchDistance = this.getDistance(thumbTip, indexTipMark);
+        const rawPinchDistance = this.getDistance(thumbTip, indexTipMark);
 
-        // Dynamic pinch threshold based on hand size
-        const handSize = this.getDistance(landmarks[0], landmarks[9]); // Wrist to middle base
-        if (pinchDistance < handSize * 0.4) { // Increased threshold for easier pinch
+        // Adaptive Scaling: Hand Scale based on Wrist (0) to Middle Finger Base (9)
+        const handScale = this.getDistance(landmarks[0], landmarks[9]);
+
+        // Normalized Pinch Distance (0.0 to ~1.5+, where < 0.2 is usually a pinch)
+        // Prevent division by zero
+        const normalizedPinchDistance = handScale > 0 ? rawPinchDistance / handScale : 10;
+
+        const pinchThreshold = 0.35; // Normalized threshold (was raw 0.05 or dynamic 0.4)
+
+        if (normalizedPinchDistance < pinchThreshold) {
             if (!this.isPinching) {
                 this.isPinching = true;
                 this.emitGesture('pinch-start');
@@ -385,11 +397,12 @@ class GestureDetector {
 
         this.lastHandPosition = currentPosition;
 
-        // Emit continuous frame data
+        // Emit continuous frame data with normalized physics
         this.emitHandFrame({
             landmarks,
             cursor: { x: (1 - indexTip.x) * window.innerWidth, y: indexTip.y * window.innerHeight },
-            pinchDistance,
+            pinchDistance: normalizedPinchDistance, // Expose normalized value
+            handScale,
             isPinching: this.isPinching,
             handOpen: this.isHandOpen(landmarks)
         });

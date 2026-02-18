@@ -316,7 +316,8 @@ html {
     transform: translate(-50%, -50%);
     box-shadow: 0 0 15px rgba(0, 242, 254, 0.6);
     z-index: 9999;
-    transition: width 0.2s, height 0.2s, background 0.2s;
+    /* Smooth transitions for visual polish */
+    transition: width 0.2s, height 0.2s, background 0.2s, box-shadow 0.1s ease-out, transform 0.1s ease-out;
     display: none;
     /* Hidden until hand detected */
 }
