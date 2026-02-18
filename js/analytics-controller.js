@@ -63,8 +63,8 @@ export default class AnalyticsController {
         const alpha = 0.2; // Smoothing factor
         this.smoothedSpeed = (this.smoothedSpeed * (1 - alpha)) + (speed * alpha);
 
-        // Noise Gate: Force to zero if movement is micro
-        if (this.smoothedSpeed < 10) this.smoothedSpeed = 0;
+        // Noise Gate: Increased to 50px/s to handle micro-vibrations on high-res displays
+        if (this.smoothedSpeed < 50) this.smoothedSpeed = 0;
 
         // 2. Update Basic Stats
         this.elements.speed.textContent = `${this.smoothedSpeed.toFixed(1)} px/s`;

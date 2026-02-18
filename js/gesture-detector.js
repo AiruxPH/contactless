@@ -509,7 +509,7 @@ class GestureDetector {
             // Apply Noise Gate & Smoothing
             const alpha = 0.3;
             palmSpeed = (this.lastPalmSpeed * (1 - alpha)) + (rawSpeed * alpha);
-            if (palmSpeed < 0.005) palmSpeed = 0;
+            if (palmSpeed < 0.008) palmSpeed = 0; // Increased threshold for noise gate
             this.lastPalmSpeed = palmSpeed;
         }
 
