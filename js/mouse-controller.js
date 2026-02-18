@@ -22,6 +22,13 @@ export default class MouseController {
         this.zoomElement = document.getElementById('zoom-target');
         this.currentZoom = 1;
 
+        // State for Dynamic Smoothing and Shielding
+        this.lastUpdateTime = Date.now();
+        this.clickShieldTime = 0; // Timestamp of last pinky click for freezing
+        this.clickShieldDuration = 150; // ms
+        this.minLerp = 0.05; // Maximum stability (Magnet)
+        this.maxLerp = 0.35; // Maximum responsiveness (Snappy)
+
         this.init();
     }
 
@@ -57,8 +64,10 @@ export default class MouseController {
 
     handleGesture(gesture) {
         if (gesture === 'pinky-click') {
+            this.clickShieldTime = Date.now(); // Activate Click Shield
             this.handlePinkyClick();
         } else if (gesture === 'pinch-start') {
+
             this.isPinchingZoom = true;
             // Immediate check if we should lock zoom
             const elem = document.elementFromPoint(this.cursorX, this.cursorY);
@@ -136,34 +145,39 @@ export default class MouseController {
     }
 
     updateCursorSmoothing(targetX, targetY) {
-        const lerpFactor = 0.15; // Lower = smoother/slower, Higher = snappier/jitterier
+        const now = Date.now();
+        const dt = (now - this.lastUpdateTime) / 1000;
+        this.lastUpdateTime = now;
 
-        this.cursorX = (targetX * lerpFactor) + (this.cursorX * (1 - lerpFactor));
-        this.cursorY = (targetY * lerpFactor) + (this.cursorY * (1 - lerpFactor));
+        // 1. CLICK SHIELD: Freeze coordinates if we just clicked
+        if (now - this.clickShieldTime < this.clickShieldDuration) {
+            return; // Lock cursor position completely
+        }
 
-        // DOM update is handled in updateLoop for now to keep the loop structure clean,
-        // or we can move it here as per user snippet. 
-        // User snippet included DOM update here. Let's strictly follow it.
-        // Actually, updateLoop handles DOM update in step 4. 
-        // I will keep the math here and let updateLoop handle the centralized DOM update 
-        // to avoid conflicts with other visual effects (glow, transform) which are calculated in updateLoop.
+        // 2. ADAPTIVE SMOOTHING: Dynamic EMA based on speed
+        const dx = targetX - this.cursorX;
+        const dy = targetY - this.cursorY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const speed = dist / Math.max(dt, 0.0001);
+
+        // Map speed to lerp factor (faster = more responsive)
+        // Normalized speed where we reach max responsiveness
+        const speedThreshold = 800; // Pixels per second
+        const lerpT = Math.min(1, speed / speedThreshold);
+        const adaptiveLerp = this.minLerp + (this.maxLerp - this.minLerp) * lerpT;
+
+        this.cursorX += (targetX - this.cursorX) * adaptiveLerp;
+        this.cursorY += (targetY - this.cursorY) * adaptiveLerp;
     }
+
 
     updateLoop() {
         requestAnimationFrame(() => this.updateLoop());
 
-        // 1. Click Locking
-        if (this.lockCursor) {
-            // Keep target at current cursor position (freeze)
-            // Or rather, ignore new targets? 
-            // The user said "freeze the cursorX and cursorY values".
-            // If we freeze cursorX/Y, the EMA in step 3 will pull it towards targetX/Y unless we freeze target or force cursor.
-            // Let's freeze the targetX/Y to the current cursorX/Y so the EMA stabilizes there.
-            this.targetX = this.cursorX;
-            this.targetY = this.cursorY;
-        }
+        // Click Shield is now handled inside updateCursorSmoothing
 
-        // 2. Magnetic Targets
+
+        // 1. Magnetic Targets
         const magnetRange = 40;
         const magnets = document.querySelectorAll('.target-button, .action-card, a');
         let magnetized = false;
@@ -184,7 +198,6 @@ export default class MouseController {
             }
         }
 
-        // 3. EMA Smoothing (User Spec: Logic moved to helper)
         this.updateCursorSmoothing(this.targetX, this.targetY);
 
         // 4. Update Cursor DOM

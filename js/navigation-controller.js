@@ -77,11 +77,21 @@ class NavigationController {
             if (this.activeContinuousGesture && this.activeContinuousGesture.includes('tilt')) {
                 const { tiltAngle } = e.detail;
                 if (tiltAngle !== undefined) {
-                    // Update intensity dynamically
-                    this.currentContinuousIntensity = Math.abs(tiltAngle) / 0.3;
+                    // TILT DEAD-ZONE: If hand is nearly upright, stop scrolling
+                    const deadzone = 0.15; // User Spec: Neutral zone
+                    if (Math.abs(tiltAngle) < deadzone) {
+                        this.stopContinuousScroll();
+                        return;
+                    }
+
+                    // Update intensity dynamically (normalized after deadzone)
+                    const maxTilt = 0.6; // ~35 degrees for max speed
+                    const intensity = (Math.abs(tiltAngle) - deadzone) / (maxTilt - deadzone);
+                    this.currentContinuousIntensity = Math.min(Math.max(intensity, 0.2), 2.5);
                 }
             }
         });
+
 
         this.updateStatus();
     }
@@ -115,12 +125,17 @@ class NavigationController {
             this.stopContinuousScroll();
 
             // Calculate intensity for flicks (Proportional Scrolling)
-            // User Spec: Velocity based intensity
+            // User Spec: Momentum Smoothing
             let intensity = 1;
             if (data && data.velocity) {
-                // Map velocity to intensity (e.g., 1.5 to 8.0 velocity -> 1.0 to 5.0 intensity)
-                intensity = Math.min(Math.max(data.velocity / 1.5, 1), 6);
+                // Exponential mapping for smoother slow-starts and punchy fast-flicks
+                // Map velocity (1.5 - 8.0) to intensity (1.0 - 5.0)
+                const baseVel = 1.5;
+                const normalizedVel = Math.max(0, data.velocity - baseVel);
+                intensity = 1 + Math.pow(normalizedVel / 2, 1.2);
+                intensity = Math.min(intensity, 6); // Cap for safety
             }
+
 
             // Execute Action
             if (action) {

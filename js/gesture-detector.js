@@ -243,29 +243,29 @@ class GestureDetector {
     }
 
     isHandOpen(landmarks) {
-        // Check if hand is open by comparing finger tip Y positions with middle joints
-        // Lower Y = higher on screen (fingers pointing up when extended)
+        // Hybrid 'Hand Open' Guard User Spec: 
+        // As long as the Index Finger [8] is extended and tracked, keep the Aerial Mouse active.
 
-        // Index finger: tip (8) should be above middle joint (6)
+        // Index finger: tip (8) should be above MCP (5) or PIP (6)
+        // We use a slightly more lenient check: Tip Y vs PIP Y
         const indexExtended = landmarks[8].y < landmarks[6].y;
 
-        // Middle finger: tip (12) should be above middle joint (10)
+        // For general "is the hand open" (used for navigation gestures), 
+        // we still check for at least 2 fingers to avoid accidental swipes while clicking.
         const middleExtended = landmarks[12].y < landmarks[10].y;
-
-        // Ring finger: tip (16) should be above middle joint (14)
         const ringExtended = landmarks[16].y < landmarks[14].y;
 
-        // Count extended fingers
         const extendedCount = [indexExtended, middleExtended, ringExtended].filter(Boolean).length;
-        const isOpen = extendedCount >= 2;
 
-        // Debug: log when hand is closed
-        if (!isOpen) {
-            console.log(`🤛 Hand CLOSED - only ${extendedCount}/3 fingers extended`);
-        }
-
-        return isOpen;
+        // This 'isOpen' is primarily for allowing Swipe/Flick/Tilt
+        return extendedCount >= 2;
     }
+
+    isIndexTracked(landmarks) {
+        // Essential check for cursor movement
+        return landmarks[8].y < landmarks[5].y;
+    }
+
 
     getDistance(point1, point2) {
         const dx = point2.x - point1.x;
@@ -297,13 +297,15 @@ class GestureDetector {
         const isOpen = this.isHandOpen(landmarks);
 
         // Calculate absolute palm angle for continuous tilt speed
-        const palmDX = middleFingerBase.x - wrist.x;
-        const palmDY = middleFingerBase.y - wrist.y;
+        // User Spec: Use vector between Wrist [0] and Palm Center for Tilt
+        const palmDX = this.currentPalmCenter.x - wrist.x;
+        const palmDY = this.currentPalmCenter.y - wrist.y;
         const currentAngle = Math.atan2(palmDY, palmDX);
         const neutralAngle = -Math.PI / 2;
         let angleDiff = currentAngle - neutralAngle;
         while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
         while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+
 
         // 2. Emit Frame Data Immediately (Continuous Tracking)
         this.emitHandFrame({
@@ -326,30 +328,28 @@ class GestureDetector {
             return;
         }
 
+        // Anchor Point DecouPLING: Use Palm Center as the 'Anchor'
         const currentPosition = {
-            x: wrist.x,
-            y: wrist.y,
+            x: this.currentPalmCenter.x,
+            y: this.currentPalmCenter.y,
             time: now
         };
 
-        // 4. Gesture Detection Guard: Hand Open
+        // 4. Hybrid Guard Logic
+        // Mouse Cursor works as long as index is tracked.
+        // Navigation (Swipe/Flick/Tilt) requires an open hand.
         if (!isOpen) {
             this.lastHandPosition = currentPosition;
-            this.lastPalmAngle = null;
+            this.lastFingerPositions = null;
             return;
         }
 
         let gesture = null;
+        let data = null;
 
-        // ABSOLUTE TILT DETECTION: Track palm angle relative to vertical (already calculated above)
-
-
-        const tiltThreshold = 0.25; // ~15 degrees
-
+        // TILT DETECTION (Variable Scroll)
+        const tiltThreshold = 0.35;
         if (Math.abs(angleDiff) > tiltThreshold) {
-            // Note: Positive angleDiff usually means tilting Right in mirrored camera view
-            // if palmDX is positive and palmDY is negative (-PI/4).
-            // Let's keep it simple: Map to directions that match NavigationController logic
             if (Math.abs(angleDiff) > 1.25) {
                 gesture = angleDiff > 0 ? 'tilt-down' : 'tilt-up';
             } else {
@@ -358,6 +358,29 @@ class GestureDetector {
             data = { angle: angleDiff };
         }
 
+        // SWIPE vs FLICK LOGIC
+        let palmDeltaX = 0;
+        let palmDeltaY = 0;
+        let palmSpeed = 0;
+
+        if (this.lastHandPosition) {
+            palmDeltaX = currentPosition.x - this.lastHandPosition.x;
+            palmDeltaY = currentPosition.y - this.lastHandPosition.y;
+            const deltaTime = (now - this.lastHandPosition.time) / 1000;
+            const magnitude = Math.sqrt(palmDeltaX * palmDeltaX + palmDeltaY * palmDeltaY);
+            palmSpeed = magnitude / Math.max(deltaTime, 0.001);
+
+            const swipeThreshold = 0.04;
+            const minSwipeSpeed = 0.2;
+
+            if (!gesture && magnitude > swipeThreshold && palmSpeed > minSwipeSpeed) {
+                if (Math.abs(palmDeltaY) > Math.abs(palmDeltaX)) {
+                    gesture = palmDeltaY < -swipeThreshold ? 'swipe-up' : 'swipe-down';
+                } else {
+                    gesture = palmDeltaX < -swipeThreshold ? 'swipe-right' : 'swipe-left';
+                }
+            }
+        }
 
         // FINGER FLICK DETECTION
         const middleTip = landmarks[12];
@@ -367,70 +390,43 @@ class GestureDetector {
             time: now
         };
 
-        if (this.lastFingerPositions) {
+        if (!gesture && this.lastFingerPositions) {
             const deltaTime = (now - this.lastFingerPositions.time) / 1000;
-            if (deltaTime > 0) {
+            const palmStabilityThreshold = 0.15; // If palm is stable, allow flick
+
+            if (deltaTime > 0 && palmSpeed < palmStabilityThreshold) {
                 const indexVelY = (currentFingers.index.y - this.lastFingerPositions.index.y) / deltaTime;
                 const middleVelY = (currentFingers.middle.y - this.lastFingerPositions.middle.y) / deltaTime;
                 const indexVelX = (currentFingers.index.x - this.lastFingerPositions.index.x) / deltaTime;
                 const middleVelX = (currentFingers.middle.x - this.lastFingerPositions.middle.x) / deltaTime;
 
-                const flickThreshold = 1.2;
+                const flickThreshold = 1.5;
+                const maxRelVelY = Math.max(Math.abs(indexVelY), Math.abs(middleVelY));
+                const maxRelVelX = Math.max(Math.abs(indexVelX), Math.abs(middleVelX));
 
-                if (!gesture) {
-                    const maxRelVelY = Math.max(Math.abs(indexVelY), Math.abs(middleVelY));
-                    const maxRelVelX = Math.max(Math.abs(indexVelX), Math.abs(middleVelX));
-
-                    if (maxRelVelY > maxRelVelX && maxRelVelY > flickThreshold) {
-                        if (indexVelY < -flickThreshold || middleVelY < -flickThreshold) gesture = 'finger-flick-down';
-                        else if (indexVelY > flickThreshold || middleVelY > flickThreshold) gesture = 'finger-flick-up';
-                    } else if (maxRelVelX > flickThreshold) {
-                        if (indexVelX < -flickThreshold || middleVelX < -flickThreshold) gesture = 'finger-flick-right';
-                        else if (indexVelX > flickThreshold || middleVelX > flickThreshold) gesture = 'finger-flick-left';
-                    }
-                }
-            }
-        }
-        this.lastFingerPositions = currentFingers;
-
-        // SWIPE DETECTION
-        if (!gesture && this.lastHandPosition) {
-            const deltaX = currentPosition.x - this.lastHandPosition.x;
-            const deltaY = currentPosition.y - this.lastHandPosition.y;
-            const deltaTime = (now - this.lastHandPosition.time) / 1000;
-            const magnitude = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-            const speed = magnitude / Math.max(deltaTime, 0.001);
-            const threshold = 0.03;
-            const minSpeed = 0.15;
-
-            if (magnitude > threshold && speed > minSpeed) {
-                if (Math.abs(deltaY) > Math.abs(deltaX)) {
-                    if (deltaY < -threshold) gesture = 'swipe-up';
-                    else if (deltaY > threshold) gesture = 'swipe-down';
-                } else {
-                    if (deltaX < -threshold) gesture = 'swipe-right';
-                    else if (deltaX > threshold) gesture = 'swipe-left';
+                if (maxRelVelY > maxRelVelX && maxRelVelY > flickThreshold) {
+                    gesture = (indexVelY < -flickThreshold || middleVelY < -flickThreshold) ? 'finger-flick-down' : 'finger-flick-up';
+                } else if (maxRelVelX > flickThreshold) {
+                    gesture = (indexVelX < -flickThreshold || middleVelX < -flickThreshold) ? 'finger-flick-right' : 'finger-flick-left';
                 }
             }
         }
 
         if (gesture) {
-            let data = null;
-            if (gesture.startsWith('finger-flick') && this.lastFingerPositions) {
+            // Calculate velocity for flicks if not already set
+            if (!data && gesture.startsWith('finger-flick') && this.lastFingerPositions) {
                 const deltaTime = (now - this.lastFingerPositions.time) / 1000;
-                if (deltaTime > 0) {
-                    const velocity = gesture.includes('left') || gesture.includes('right')
-                        ? Math.max(Math.abs((currentFingers.index.x - this.lastFingerPositions.index.x) / deltaTime), Math.abs((currentFingers.middle.x - this.lastFingerPositions.middle.x) / deltaTime))
-                        : Math.max(Math.abs((currentFingers.index.y - this.lastFingerPositions.index.y) / deltaTime), Math.abs((currentFingers.middle.y - this.lastFingerPositions.middle.y) / deltaTime));
-                    data = { velocity };
-                }
+                const velocity = gesture.includes('left') || gesture.includes('right')
+                    ? Math.max(Math.abs((currentFingers.index.x - this.lastFingerPositions.index.x) / deltaTime), Math.abs((currentFingers.middle.x - this.lastFingerPositions.middle.x) / deltaTime))
+                    : Math.max(Math.abs((currentFingers.index.y - this.lastFingerPositions.index.y) / deltaTime), Math.abs((currentFingers.middle.y - this.lastFingerPositions.middle.y) / deltaTime));
+                data = { velocity };
             }
             console.log(`Gesture detected: ${gesture}`, data);
             this.emitGesture(gesture, data);
             this.lastGestureTime = now;
         }
 
-        // PINCH DETECTION (Zoom metric calculation)
+        // UTILITY ACTIONS (Always processed for shielding but separated from navigation gestures)
         const pinchThreshold = 0.4;
         if (rawPinchDistance < pinchThreshold) {
             if (!this.isPinching) {
@@ -442,13 +438,9 @@ class GestureDetector {
             this.emitGesture('pinch-end');
         }
 
-        // PINKY CLICK DETECTION (Reserved for clicking)
-        // Distance from Pinky Tip (20) to Pinky MCP (17) 
         const pinkyTip = landmarks[20];
         const pinkyMCP = landmarks[17];
         const pinkyDistance = this.getNormalizedDistance(pinkyTip, pinkyMCP, scale);
-
-        // Normalized threshold: 0.5 (means tip is close to palm/mcp)
         const pinkyClickThreshold = 0.5;
 
         if (pinkyDistance < pinkyClickThreshold) {
@@ -461,6 +453,7 @@ class GestureDetector {
         }
 
         this.lastHandPosition = currentPosition;
+        this.lastFingerPositions = currentFingers;
     }
 
     emitHandFrame(data) {
