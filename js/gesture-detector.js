@@ -336,6 +336,21 @@ class GestureDetector {
         return extendedCount >= 2;
     }
 
+    isFullFist(landmarks) {
+        // Absolute clench requirement: Index, Middle, Ring, and Pinky must all be folded
+        const indexFolded = landmarks[8].y > landmarks[6].y;
+        const middleFolded = landmarks[12].y > landmarks[10].y;
+        const ringFolded = landmarks[16].y > landmarks[14].y;
+        const pinkyFolded = landmarks[20].y > landmarks[18].y;
+
+        return indexFolded && middleFolded && ringFolded && pinkyFolded;
+    }
+
+    isRingClosed(landmarks) {
+        // Logic for the "Ring Clutch": Grip detected if ring tip is below the PIP joint
+        return landmarks[16].y > landmarks[14].y;
+    }
+
     isIndexTracked(landmarks) {
         // Essential check for cursor movement
         return landmarks[8].y < landmarks[5].y;
@@ -370,21 +385,23 @@ class GestureDetector {
         const scale = this.getHandScale(landmarks);
         const rawPinchDistance = this.getNormalizedDistance(landmarks[4], landmarks[8], scale);
         const isOpen = this.isHandOpen(landmarks);
+        const isFist = this.isFullFist(landmarks);
+        const isRingClosed = this.isRingClosed(landmarks);
 
-        // CLENCH-TO-PAUSE LOGIC
-        if (!isOpen) {
+        // CLENCH-TO-PAUSE LOGIC (Refined: Must be a full fist)
+        if (isFist) {
             if (this.clenchStartTime === null) {
                 this.clenchStartTime = now;
             } else if (!this.isPaused && now - this.clenchStartTime > 1000) {
                 this.isPaused = true;
-                console.log("System PAUSED: Hand Clench detected.");
+                console.log("System PAUSED: Full Fist Clench detected.");
             }
         } else {
-            // Reset on full open
-            if (this.isPaused) {
+            // Reset on any finger release if already paused, or just reset timer
+            if (isOpen && this.isPaused) {
                 console.log("System RESUMED: Hand Opened.");
+                this.isPaused = false;
             }
-            this.isPaused = false;
             this.clenchStartTime = null;
         }
 
@@ -459,6 +476,7 @@ class GestureDetector {
             isMiddlePinch: this.isMiddlePinch,
             isPinching: this.isPinching,
             handOpen: isOpen,
+            isRingClosed: isRingClosed, // Emit Ring Grip status
             handDetected: true,
             isPaused: this.isPaused
         });

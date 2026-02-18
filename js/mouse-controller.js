@@ -55,9 +55,10 @@ export default class MouseController {
         this.currentPinchDistance = data.pinchDistance;
         this.currentHandOpen = data.handOpen;
         this.isMiddlePinch = data.isMiddlePinch;
+        this.isRingClosed = data.isRingClosed;
 
-        // Update raw target from detector - ONLY if not paused
-        if (data.cursor && !data.isPaused) {
+        // Update raw target from detector - ONLY if not paused AND ring is gripped
+        if (data.cursor && !data.isPaused && data.isRingClosed) {
             this.targetX = data.cursor.x;
             this.targetY = data.cursor.y;
         }
@@ -160,7 +161,15 @@ export default class MouseController {
             return;
         }
 
-        // 1. CLICK SHIELD: Freeze coordinates if we just clicked
+        // 1. RING-GRIP CLUTCH: Freeze if ring finger is released
+        if (!this.isRingClosed) {
+            // Anchor target to current position to prevent snapping when gripped again
+            this.targetX = this.cursorX;
+            this.targetY = this.cursorY;
+            return;
+        }
+
+        // 2. CLICK SHIELD: Freeze coordinates if we just clicked
         if (now - this.clickShieldTime < this.clickShieldDuration) {
             return; // Lock cursor position completely
         }
