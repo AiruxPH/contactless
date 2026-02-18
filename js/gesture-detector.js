@@ -618,10 +618,13 @@ class GestureDetector {
         }
 
         // 2. Middle Pinch detection (Zoom Lever)
+        // Phase 42: Isolation Guard - Only allow if index is extended and NOT in a full fist
         const middleMCP = landmarks[9];
         const middleDistance = this.getNormalizedDistance(middleTip, middleMCP, scale);
         const middlePinchThreshold = 0.52;
-        this.isMiddlePinch = middleDistance < middlePinchThreshold;
+        const indexExtended = landmarks[8].y < landmarks[6].y;
+
+        this.isMiddlePinch = (middleDistance < middlePinchThreshold) && indexExtended && !isFist;
 
         // 3. Pinky Click Detection
         const pinkyTip = landmarks[20];
