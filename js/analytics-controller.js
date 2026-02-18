@@ -66,7 +66,18 @@ export default class AnalyticsController {
         }
         if (this.elements.pitch) this.elements.pitch.textContent = `${(data.pitch || 0).toFixed(1)}°`;
         if (this.elements.yaw) this.elements.yaw.textContent = `${(data.yaw || 0).toFixed(1)}°`;
-        if (this.elements.handedness) this.elements.handedness.textContent = data.handedness || 'N/A';
+        if (this.elements.handedness) {
+            this.elements.handedness.textContent = data.handedness || 'N/A';
+            // Color coding for instant identification
+            if (data.handedness === 'Right') {
+                this.elements.handedness.style.color = '#38bdf8'; // Sky Blue
+            } else if (data.handedness === 'Left') {
+                this.elements.handedness.style.color = '#f472b6'; // Pinkish/Rose
+            } else {
+                this.elements.handedness.style.color = '#94a3b8'; // Muted
+            }
+        }
+
         if (this.elements.gimbalSync) {
             const isSync = !!data.handedness;
             this.elements.gimbalSync.textContent = isSync ? 'ACTIVE' : 'INACTIVE';
