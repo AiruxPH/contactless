@@ -3,6 +3,7 @@ export default class AnalyticsController {
         this.gestureDetector = gestureDetector;
         this.lastFrameTime = Date.now();
         this.lastHandPos = null;
+        this.smoothedSpeed = 0; // Filtered speed for stable display
 
         // Element caching
         this.elements = {
@@ -58,8 +59,15 @@ export default class AnalyticsController {
         }
         this.lastHandPos = { x: wrist.x, y: wrist.y };
 
+        // 1.5 Signal Conditioning: EMA + Dead-Zone
+        const alpha = 0.2; // Smoothing factor
+        this.smoothedSpeed = (this.smoothedSpeed * (1 - alpha)) + (speed * alpha);
+
+        // Noise Gate: Force to zero if movement is micro
+        if (this.smoothedSpeed < 10) this.smoothedSpeed = 0;
+
         // 2. Update Basic Stats
-        this.elements.speed.textContent = `${speed.toFixed(1)} px/s`;
+        this.elements.speed.textContent = `${this.smoothedSpeed.toFixed(1)} px/s`;
         if (this.elements.facing) {
             this.elements.facing.textContent = data.isFacingCamera ? 'TRUE' : 'FALSE';
             this.elements.facing.style.color = data.isFacingCamera ? '#4ade80' : '#f87171';

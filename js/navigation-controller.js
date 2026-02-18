@@ -8,7 +8,7 @@ class NavigationController {
         // Physics State
         this.velocityX = 0;
         this.velocityY = 0;
-        this.friction = 0.92;
+        this.friction = this.isGalleryMode() ? 0.88 : 0.92; // Context-aware friction
         this.activeAxis = null; // 'pitch', 'yaw', or null
 
         // Intensity & Direction
@@ -128,7 +128,8 @@ class NavigationController {
 
     startPhysicsLoop() {
         const loop = () => {
-            // 1. Friction Decay
+            // 1. Friction Decay - Apply context-aware friction update
+            this.friction = this.isGalleryMode() ? 0.88 : 0.92;
             this.velocityX *= this.friction;
             this.velocityY *= this.friction;
 

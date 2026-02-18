@@ -27,7 +27,7 @@ export default class MouseController {
         this.clickShieldTime = 0; // Timestamp of last pinky click for freezing
         this.clickShieldDuration = 150; // ms
         this.minLerp = 0.05; // Maximum stability (Magnet)
-        this.maxLerp = 0.35; // Maximum responsiveness (Snappy)
+        this.maxLerp = 0.5; // Final Polish: Increased for better snappiness
 
         this.init();
     }

@@ -26,6 +26,7 @@ class GestureDetector {
         this.clenchStartTime = null;
         this.isPaused = false;
         this.trackingLossTime = null; // Buffer for accidental resets
+        this.lastPalmSpeed = 0; // Filtered speed for gesture stability
 
         this.init();
     }
@@ -503,7 +504,13 @@ class GestureDetector {
             const palmDeltaY = currentPosition.y - this.lastHandPosition.y;
             const palmDeltaTime = (now - this.lastHandPosition.time) / 1000;
             const magnitude = Math.sqrt(palmDeltaX * palmDeltaX + palmDeltaY * palmDeltaY);
-            palmSpeed = magnitude / Math.max(palmDeltaTime, 0.001);
+            const rawSpeed = magnitude / Math.max(palmDeltaTime, 0.001);
+
+            // Apply Noise Gate & Smoothing
+            const alpha = 0.3;
+            palmSpeed = (this.lastPalmSpeed * (1 - alpha)) + (rawSpeed * alpha);
+            if (palmSpeed < 0.005) palmSpeed = 0;
+            this.lastPalmSpeed = palmSpeed;
         }
 
         // 6. Face Direction Guard
