@@ -1,20 +1,24 @@
-# Task: Solidify Scrolling & Remove Redundant Logic
+# Task: Implement Phone-Style "Touch & Flick" Navigation
 
 ## Objective
-Reduce the 12 existing scrolling gestures to 2 highly stable modes: Continuous Gimbal Drifting and High-Velocity Finger Flicks.
+Transform the current navigation logic into a physical simulation that mimics how we scroll on a smartphone. Use the 3D Gimbal as a "virtual thumb" and the Flick Shield as a "page flipper."
 
 ## Technical Requirements
 
-### 1. Cleanup `js/navigation-controller.js`
-- **Remove Swipes:** Delete all 'swipe-up/down/left/right' logic. We will rely on Flicks for impulse movement.
-- **Refine Continuous Mode:** Focus purely on `Pitch` (Vertical) and `Yaw` (Horizontal) degrees.
-- **Adaptive Speed:** Ensure the `18 * Math.pow(intensity, 1.5)` curve is applied to all continuous movement.
+### 1. Axis Locking (The Stability Pillar)
+Update `js/navigation-controller.js` to prioritize intent.
+- **Vertical Priority:** If the absolute `Pitch` (vertical tilt) is greater than the absolute `Yaw` (horizontal tilt), ignore all horizontal drift data until the hand returns to the neutral zone.
+- **Horizontal Priority:** If `Yaw` is triggered first (e.g., in the Gallery), ignore vertical drift. This prevents diagonal "jitter" while reading.
 
-### 2. Cleanup `js/gesture-detector.js`
-- **Flick Shield:** Only detect `finger-flick` gestures if `palmSpeed < 0.15` (meaning the hand is stationary).
-- **Snap Guard:** Maintain the `pinkyVelocity` check to ensure the Pinky Click remains an independent utility action that doesn't trigger scrolls.
+### 2. Physical Momentum & Friction (The Polish)
+Introduce "weight" to the scrolling so it doesn't stop abruptly.
+- **Velocity Accumulation:** Instead of moving the page exactly by the tilt degrees, use the degree value to add "acceleration" to a local velocity variable.
+- **Friction (Decay):** Apply a friction coefficient (e.g., `0.92`) so that when the hand returns to neutral, the page glides to a smooth stop over a few milliseconds rather than freezing instantly.
 
-### 3. UI Sync
-- Update the **Quick Guide** in `index.html` and `gallery.html` to reflect the new simplified controls: 
-  - 🖐️ **Tilt:** Continuous Drift
-  - ☝️ **Flick:** Power Scroll
+### 3. Smart-Flick Integration (Page Flips)
+Sync the high-velocity snaps with the navigation speed.
+- **The Trigger:** Ensure `finger-flick` gestures remain guarded by `palmSpeed < 0.15` in `js/gesture-detector.js`.
+- **The Result:** Mapping a flick to a large, one-time scroll increment (e.g., 600px) to simulate a "hard swipe" on a phone screen.
+
+### 4. Mathematical Curve Sync
+- Continue using `18 * Math.pow(intensity, 1.5)` as the base multiplier for the acceleration variable to maintain precise control at low angles.
