@@ -86,60 +86,44 @@ export default class Hand3DController {
     }
 
     init() {
-        // Hook into gesture detector frame emitter
-        // Since we don't have a direct emitter for 3D landmarks yet in GD, 
-        // we'll listen to the handFrame event if it exists or add it.
-
         const animate = () => {
             requestAnimationFrame(animate);
             this.renderer.render(this.scene, this.camera);
         };
         animate();
 
-        // Listen for tracking data
-        this.gestureDetector.onHandFrame = (data) => this.updateHand(data);
+        // Standardized Event Listener (Matches Analytics/Mouse)
+        window.addEventListener('handFrame', (e) => this.updateHand(e.detail));
     }
 
     updateHand(data) {
-        if (!data || (!data.landmarks && !data.worldLandmarks)) {
+        if (!data || !data.landmarks) {
             this.hideHand();
             return;
         }
 
-        const useWorld = !!data.worldLandmarks;
-        const landmarks = useWorld ? data.worldLandmarks : data.landmarks;
+        const landmarks = data.landmarks;
         const isMirror = this.gestureDetector.isMirror;
 
         // Apply global hand position from screen-space wrist (landmarks[0])
         // Map 0 -> 1 normalized to -4 -> 4 in Three.js units
-        const wrist = data.landmarks[0];
+        const wrist = landmarks[0];
         if (wrist) {
             const screenX = (wrist.x - 0.5) * 4;
             const screenY = (0.5 - wrist.y) * 3;
             this.handGroup.position.set(isMirror ? -screenX : screenX, screenY, 0);
         }
 
-        // Anchor joints to wrist (landmark 0) to prevent relative drift
-        const wristAnchor = useWorld ? landmarks[0] : null;
-
-        // 1. Update Joints
+        // 1. Update Joints relative to the wrist
         landmarks.forEach((lm, i) => {
             if (this.joints[i]) {
-                let x, y, z;
+                // Screen space relative to wrist (since handGroup is anchored at wrist pos)
+                let x = (lm.x - wrist.x) * 4;
+                let y = (wrist.y - lm.y) * 3;
+                // Z from MediaPipe landmarks is relative depth, we scale it for 3D volume
+                let z = -lm.z * 5;
 
-                if (useWorld) {
-                    // World landmarks (meters) relative to wristAnchor
-                    x = (lm.x - wristAnchor.x) * 10;
-                    y = (wristAnchor.y - lm.y) * 10;
-                    z = (wristAnchor.z - lm.z) * 10;
-                    if (isMirror) x = -x;
-                } else {
-                    // Fallback to screen space relative to wrist (since handGroup is at wrist pos)
-                    x = (lm.x - data.landmarks[0].x) * 4;
-                    y = (data.landmarks[0].y - lm.y) * 3;
-                    z = -lm.z * 2;
-                    if (isMirror) x = -x;
-                }
+                if (isMirror) x = -x;
 
                 this.joints[i].position.set(x, y, z);
                 this.joints[i].visible = true;

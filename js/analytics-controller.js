@@ -21,7 +21,8 @@ export default class AnalyticsController {
             ring: document.getElementById('stat-ring'),
             log: document.getElementById('gesture-log'),
             table: document.getElementById('landmark-table'),
-            gimbalToggle: document.getElementById('toggle-gimbal')
+            gimbalToggle: document.getElementById('toggle-gimbal'),
+            connection: document.getElementById('detector-status')
         };
 
 
@@ -57,7 +58,19 @@ export default class AnalyticsController {
             if (this.elements.pinch) this.elements.pinch.textContent = "0.000";
             if (this.elements.scale) this.elements.scale.textContent = "0.000";
             if (this.elements.table) this.elements.table.innerHTML = "";
+
+            if (this.elements.connection) {
+                this.elements.connection.textContent = "IDLE";
+                this.elements.connection.style.background = "rgba(148, 163, 184, 0.1)";
+                this.elements.connection.style.color = "#94a3b8";
+            }
             return;
+        }
+
+        if (this.elements.connection) {
+            this.elements.connection.textContent = "CONNECTED";
+            this.elements.connection.style.background = "rgba(56, 189, 248, 0.1)";
+            this.elements.connection.style.color = "#38bdf8";
         }
 
         const now = Date.now();

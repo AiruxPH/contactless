@@ -5,7 +5,6 @@ class GestureDetector {
         this.ctx = canvasElement.getContext('2d');
         this.handLandmarker = null;
         this.isDetecting = false;
-        this.onHandFrame = null; // Callback for real-time 3D landmark data
         this.lastHandPosition = null;
         this.lastPalmAngle = null; // Track palm rotation angle
         this.lastFingerPositions = null; // Track finger positions for flick detection
@@ -122,19 +121,6 @@ class GestureDetector {
                             results.handedness && results.handedness[0] ? results.handedness[0][0] : null
                         );
 
-                        // Emit processed frame data for 3D simulator
-                        if (this.onHandFrame) {
-                            this.onHandFrame({
-                                landmarks: results.landmarks[0],
-                                worldLandmarks: results.worldLandmarks ? results.worldLandmarks[0] : null,
-                                isPaused: this.isPaused,
-                                isRingClosed: this.isRingClosed(results.landmarks[0]),
-                                handedness: results.handedness && results.handedness[0] ? results.handedness[0][0] : null
-                            });
-                        }
-
-
-
                         this.emitStatus('handDetected', true);
                         this.trackingLossTime = null; // Reset persistence timer
                     } else {
@@ -165,9 +151,6 @@ class GestureDetector {
                             isPaused: this.isPaused
                         };
 
-                        if (this.onHandFrame) {
-                            this.onHandFrame(nullFrame);
-                        }
                         this.emitHandFrame(nullFrame);
                     }
                 }
@@ -428,44 +411,39 @@ class GestureDetector {
             this.clenchStartTime = null;
         }
 
-        // HAND GIMBAL SYSTEM (3D Orientation using World Landmarks)
+        // HAND GIMBAL SYSTEM (3D Orientation using Raw Landmarks)
         // User Spec: Use Wrist-to-Middle for Pitch, Index-to-Pinky for Yaw
         let pitchDegrees = 0;
         let yawDegrees = 0;
         let isFacingCamera = true;
-        let worldWristZ = 0;
+        let worldWristZ = worldLandmarks ? worldLandmarks[0].z : landmarks[0].z;
 
-        if (worldLandmarks) {
-            const wWrist = worldLandmarks[0];
-            const wMiddleMCP = worldLandmarks[9];
-            const wIndexMCP = worldLandmarks[5];
-            const wPinkyMCP = worldLandmarks[17];
-            worldWristZ = wWrist.z;
+        // Pitch: Vertical Vector (Wrist[0] -> Middle MCP[9])
+        // Use raw coordinates to stay perfectly in sync with analytics table
+        const wrist_raw = landmarks[0];
+        const middle_raw = landmarks[9];
+        const index_raw = landmarks[5];
+        const pinky_raw = landmarks[17];
 
-            // Pitch: Vertical Vector (Wrist -> Middle MCP)
-            // Median Formula for zero-pivot orientation
-            const dy = worldLandmarks[9].y - worldLandmarks[0].y;
-            const dz = worldLandmarks[9].z - worldLandmarks[0].z;
-            pitchDegrees = Math.atan2(dz, -dy) * (180 / Math.PI);
+        const dy = middle_raw.y - wrist_raw.y;
+        const dz = middle_raw.z - wrist_raw.z;
+        // atan2 expects (depth, vertical_span)
+        pitchDegrees = Math.atan2(dz, -dy) * (180 / Math.PI);
 
-            // Yaw: Horizontal Vector (Index MCP -> Pinky MCP)
-            const yX = wPinkyMCP.x - wIndexMCP.x;
-            const yZ = wPinkyMCP.z - wIndexMCP.z;
+        // Yaw: Horizontal Vector (Index MCP[5] -> Pinky MCP[17])
+        const yX = pinky_raw.x - index_raw.x;
+        const yZ = pinky_raw.z - index_raw.z;
+        // atan2 expects (depth, horizontal_span)
+        yawDegrees = Math.atan2(yZ, Math.abs(yX)) * (180 / Math.PI);
 
-            // atan2(depth, horizontal) - Normalize X-span to ignore handedness flip here
-            yawDegrees = Math.atan2(yZ, Math.abs(yX)) * (180 / Math.PI);
-
-            // Handedness Correction: Mirror Yaw for Left Hand
-            // User Spec: If 'Left', multiply by -1 to sync physical 'Tilting Right' values
-            const handLabel = handedness ? handedness.categoryName : 'Right';
-            if (handLabel === 'Left') {
-                yawDegrees = -yawDegrees;
-            }
-
-            // Facing Guard Thresholds (Relaxed)
-            isFacingCamera = Math.abs(pitchDegrees) < 55 && Math.abs(yawDegrees) < 60;
-
+        // Handedness Correction: Mirror Yaw for Left Hand
+        const handLabel = handedness ? handedness.categoryName : 'Right';
+        if (handLabel === 'Left') {
+            yawDegrees = -yawDegrees;
         }
+
+        // Facing Guard Thresholds (Standardized for Raw Coordinates)
+        isFacingCamera = Math.abs(pitchDegrees) < 55 && Math.abs(yawDegrees) < 60;
 
         // Calculate absolute palm angle for legacy 2D Tilt (Continuous Scroll fallback)
         const pCenter = this.currentPalmCenter;
