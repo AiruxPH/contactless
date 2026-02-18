@@ -172,6 +172,22 @@ class GestureDetector {
             ctx.fill();
         });
 
+        // Draw Green Lines connecting finger tips
+        // Tips: Thumb(4), Index(8), Middle(12), Ring(16), Pinky(20)
+        const tipIndices = [4, 8, 12, 16, 20];
+        ctx.strokeStyle = '#00FF00';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let i = 0; i < tipIndices.length; i++) {
+            const tip = landmarks[tipIndices[i]];
+            const x = tip.x * this.canvas.width;
+            const y = tip.y * this.canvas.height;
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+
         // Palm Center Calculation and Drawing
         // User Spec: Midpoint between wrist [0] and MCPs [5, 9, 13, 17]
         const mcps = [landmarks[5], landmarks[9], landmarks[13], landmarks[17]];
