@@ -7,12 +7,15 @@ export default class AnalyticsController {
         // Element caching
         this.elements = {
             speed: document.getElementById('stat-speed'),
-            tilt: document.getElementById('stat-tilt'),
+            facing: document.getElementById('stat-facing'),
+            pitch: document.getElementById('stat-pitch'),
+            yaw: document.getElementById('stat-yaw'),
             pinch: document.getElementById('stat-pinch'),
             scale: document.getElementById('stat-scale'),
             log: document.getElementById('gesture-log'),
             table: document.getElementById('landmark-table')
         };
+
 
         this.init();
     }
@@ -44,9 +47,16 @@ export default class AnalyticsController {
 
         // 2. Update Basic Stats
         this.elements.speed.textContent = `${speed.toFixed(1)} px/s`;
-        this.elements.tilt.textContent = `${((data.tiltAngle || 0) * (180 / Math.PI)).toFixed(1)}°`;
+        if (this.elements.facing) {
+            this.elements.facing.textContent = data.isFacingCamera ? 'TRUE' : 'FALSE';
+            this.elements.facing.style.color = data.isFacingCamera ? '#4ade80' : '#f87171';
+        }
+        if (this.elements.pitch) this.elements.pitch.textContent = `${(data.pitch || 0).toFixed(1)}°`;
+        if (this.elements.yaw) this.elements.yaw.textContent = `${(data.yaw || 0).toFixed(1)}°`;
+
         this.elements.pinch.textContent = (data.pinchDistance || 0).toFixed(3);
         this.elements.scale.textContent = (data.handScale || 0).toFixed(3);
+
 
         // 3. Update Landmark Table (Throttle updates or just landmarks)
         this.updateTable(landmarks);

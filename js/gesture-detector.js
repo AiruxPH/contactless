@@ -296,15 +296,29 @@ class GestureDetector {
         const rawPinchDistance = this.getNormalizedDistance(landmarks[4], landmarks[8], scale);
         const isOpen = this.isHandOpen(landmarks);
 
+        // HAND GIMBAL SYSTEM (3D Orientation)
+        // User Spec: Use Palm Center as absolute median / zero-pivot
+        const pCenter = this.currentPalmCenter;
+        const pitchDeltaZ = landmarks[9].z - landmarks[0].z;
+        const pitchDegrees = (pitchDeltaZ / scale) * 90;
+
+        const thumbBase = landmarks[2];
+        const yawDX = thumbBase.x - (pCenter ? pCenter.x : landmarks[0].x);
+        const yawDZ = thumbBase.z - (pCenter ? pCenter.z : landmarks[0].z);
+        const yawRaw = Math.atan2(yawDZ, yawDX);
+        const yawDegrees = (yawRaw + Math.PI / 2) * (180 / Math.PI);
+
+        const isFacingCamera = Math.abs(pitchDegrees) < 45 && Math.abs(yawDegrees) < 60;
+
         // Calculate absolute palm angle for continuous tilt speed
-        // User Spec: Use vector between Wrist [0] and Palm Center for Tilt
-        const palmDX = this.currentPalmCenter.x - wrist.x;
-        const palmDY = this.currentPalmCenter.y - wrist.y;
+        const palmDX = (pCenter ? pCenter.x : (wrist.x + middleFingerBase.x) / 2) - wrist.x;
+        const palmDY = (pCenter ? pCenter.y : (wrist.y + middleFingerBase.y) / 2) - wrist.y;
         const currentAngle = Math.atan2(palmDY, palmDX);
         const neutralAngle = -Math.PI / 2;
         let angleDiff = currentAngle - neutralAngle;
         while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
         while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+
 
 
         // 2. Emit Frame Data Immediately (Continuous Tracking)
@@ -317,10 +331,14 @@ class GestureDetector {
             } : null,
             pinchDistance: rawPinchDistance,
             tiltAngle: angleDiff,
+            pitch: typeof pitchDegrees !== 'undefined' ? pitchDegrees : 0,
+            yaw: typeof yawDegrees !== 'undefined' ? yawDegrees : 0,
+            isFacingCamera: typeof isFacingCamera !== 'undefined' ? isFacingCamera : true,
             handScale: scale,
             isPinching: this.isPinching,
             handOpen: isOpen
         });
+
 
 
         // 3. Gesture Detection Guard: Cooldown
@@ -328,7 +346,7 @@ class GestureDetector {
             return;
         }
 
-        // Anchor Point DecouPLING: Use Palm Center as the 'Anchor'
+        // Anchor Point Decoupling: Use Palm Center as the 'Anchor'
         const currentPosition = {
             x: this.currentPalmCenter.x,
             y: this.currentPalmCenter.y,
@@ -344,7 +362,16 @@ class GestureDetector {
             return;
         }
 
+        // 5. Facing Direction Guard
+        // User Spec: Prevent navigation gestures when the hand is not facing the camera.
+        if (typeof isFacingCamera !== 'undefined' && !isFacingCamera) {
+            this.lastHandPosition = currentPosition;
+            this.lastFingerPositions = null;
+            return;
+        }
+
         let gesture = null;
+
         let data = null;
 
         // TILT DETECTION (Variable Scroll)

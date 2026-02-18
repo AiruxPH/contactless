@@ -75,22 +75,26 @@ class NavigationController {
         // Listen for continuous frame data to update tilt intensity
         window.addEventListener('handFrame', (e) => {
             if (this.activeContinuousGesture && this.activeContinuousGesture.includes('tilt')) {
-                const { tiltAngle } = e.detail;
-                if (tiltAngle !== undefined) {
-                    // TILT DEAD-ZONE: If hand is nearly upright, stop scrolling
-                    const deadzone = 0.15; // User Spec: Neutral zone
-                    if (Math.abs(tiltAngle) < deadzone) {
-                        this.stopContinuousScroll();
-                        return;
-                    }
+                const { pitch, yaw } = e.detail;
 
-                    // Update intensity dynamically (normalized after deadzone)
-                    const maxTilt = 0.6; // ~35 degrees for max speed
-                    const intensity = (Math.abs(tiltAngle) - deadzone) / (maxTilt - deadzone);
-                    this.currentContinuousIntensity = Math.min(Math.max(intensity, 0.2), 2.5);
+                // TILT DEAD-ZONE & 2D Logic
+                // Pitch drives Vertical, Yaw drives Horizontal
+                const isVertical = this.activeContinuousGesture.includes('up') || this.activeContinuousGesture.includes('down');
+                const angle = isVertical ? pitch : yaw;
+                const deadzone = 12; // Degrees (from Hand Gimbal System)
+
+                if (Math.abs(angle) < deadzone) {
+                    this.stopContinuousScroll();
+                    return;
                 }
+
+                // Update intensity dynamically (normalized)
+                const maxAngle = 45;
+                const intensity = (Math.abs(angle) - deadzone) / (maxAngle - deadzone);
+                this.currentContinuousIntensity = Math.min(Math.max(intensity, 0.2), 3.0);
             }
         });
+
 
 
         this.updateStatus();
