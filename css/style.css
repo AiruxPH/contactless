@@ -140,6 +140,20 @@ section p {
     font-size: 1.1em;
 }
 
+section ul {
+    margin: 15px 0 15px 25px;
+}
+
+section li {
+    margin: 8px 0;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+#section-4 li,
+#section-5 li {
+    color: #fff;
+}
+
 /* Smooth Scrolling */
 html {
     scroll-behavior: smooth;
@@ -167,16 +181,29 @@ html {
 }
 
 #status-panel .instructions-panel,
-.instructions-panel {
+.instructions-panel,
+.instructions {
     background: rgba(255, 255, 255, 0.1);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    padding: 12px;
+    padding: 20px;
     border-radius: 12px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-    width: 220px;
     border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+#status-panel .instructions-panel,
+.instructions-panel {
+    width: 220px;
     font-size: 0.85em;
+    padding: 12px;
+}
+
+.instructions h4 {
+    color: #fff;
+    margin-bottom: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 8px;
 }
 
 .instructions-panel h4 {
