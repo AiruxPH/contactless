@@ -11,7 +11,8 @@ export default class Hand3DController {
 
         // Camera
         this.camera = new THREE.PerspectiveCamera(75, this.canvas.clientWidth / this.canvas.clientHeight, 0.1, 1000);
-        this.camera.position.z = 1.5; // Slightly closer for hand detail
+        this.camera.position.set(0, 0, 3); // Positioned further back for context
+        this.camera.lookAt(0, 0, 0);
 
         // Renderer
         this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: true });
@@ -26,7 +27,10 @@ export default class Hand3DController {
         pointLight.position.set(2, 2, 2);
         this.scene.add(pointLight);
 
-        // Hand Model Parts
+        // Hand Model Group
+        this.handGroup = new THREE.Group();
+        this.scene.add(this.handGroup);
+
         this.joints = [];
         this.segments = [];
         this.createHandModel();
@@ -40,13 +44,17 @@ export default class Hand3DController {
 
     createHandModel() {
         // Create 21 joints (spheres)
-        const jointGeometry = new THREE.SphereGeometry(0.02, 16, 16);
-        const jointMaterial = new THREE.MeshPhongMaterial({ color: 0x38bdf8, emissive: 0x38bdf8, emissiveIntensity: 0.5 });
+        const jointGeometry = new THREE.SphereGeometry(0.015, 16, 16);
+        const jointMaterial = new THREE.MeshPhongMaterial({
+            color: 0x00f2ff,
+            emissive: 0x00f2ff,
+            emissiveIntensity: 1
+        });
 
         for (let i = 0; i < 21; i++) {
             const joint = new THREE.Mesh(jointGeometry, jointMaterial);
             this.joints.push(joint);
-            this.scene.add(joint);
+            this.handGroup.add(joint);
         }
 
         // Define bone connections (pairs of indices)
@@ -56,16 +64,24 @@ export default class Hand3DController {
             [5, 9], [9, 10], [10, 11], [11, 12], // Middle
             [9, 13], [13, 14], [14, 15], [15, 16], // Ring
             [13, 17], [17, 18], [18, 19], [19, 20], // Pinky
-            [0, 17] // Palm base
+            [0, 17], // Palm base
+            // Cyber Fan: Tip connections
+            [4, 8], [8, 12], [12, 16], [16, 20]
         ];
 
-        const segmentMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff, transparent: true, opacity: 0.3 });
+        const segmentMaterial = new THREE.MeshPhongMaterial({
+            color: 0x00f2ff,
+            transparent: true,
+            opacity: 0.4,
+            emissive: 0x00f2ff,
+            emissiveIntensity: 0.5
+        });
 
         for (let i = 0; i < this.boneConnections.length; i++) {
-            const segmentGeometry = new THREE.CylinderGeometry(0.008, 0.008, 1, 8);
+            const segmentGeometry = new THREE.CylinderGeometry(0.005, 0.005, 1, 8);
             const segment = new THREE.Mesh(segmentGeometry, segmentMaterial);
             this.segments.push(segment);
-            this.scene.add(segment);
+            this.handGroup.add(segment);
         }
     }
 
@@ -90,10 +106,21 @@ export default class Hand3DController {
             return;
         }
 
-        // Prioritize worldLandmarks for "better figure" (anatomical consistency)
         const useWorld = !!data.worldLandmarks;
         const landmarks = useWorld ? data.worldLandmarks : data.landmarks;
         const isMirror = this.gestureDetector.isMirror;
+
+        // Apply global hand position from screen-space wrist (landmarks[0])
+        // Map 0 -> 1 normalized to -4 -> 4 in Three.js units
+        const wrist = data.landmarks[0];
+        if (wrist) {
+            const screenX = (wrist.x - 0.5) * 4;
+            const screenY = (0.5 - wrist.y) * 3;
+            this.handGroup.position.set(isMirror ? -screenX : screenX, screenY, 0);
+        }
+
+        // Anchor joints to wrist (landmark 0) to prevent relative drift
+        const wristAnchor = useWorld ? landmarks[0] : null;
 
         // 1. Update Joints
         landmarks.forEach((lm, i) => {
@@ -101,21 +128,16 @@ export default class Hand3DController {
                 let x, y, z;
 
                 if (useWorld) {
-                    // World landmarks (meters). Wrist is center.
-                    x = lm.x * 12; // Scale for Three.js scene
-                    y = -lm.y * 12;
-                    z = -lm.z * 12;
+                    // World landmarks (meters) relative to wristAnchor
+                    x = (lm.x - wristAnchor.x) * 10;
+                    y = (wristAnchor.y - lm.y) * 10; // Flip Y for MP (down) to Three (up)
+                    z = (wristAnchor.z - lm.z) * 10; // Flip Z for anatomical consistency
 
-                    // If mirroring, flip X
                     if (isMirror) x = -x;
                 } else {
-                    // Normalized screen landmarks (0-1)
                     x = (lm.x - 0.5) * 4;
                     y = (0.5 - lm.y) * 3;
                     z = -lm.z * 2;
-
-                    // If mirroring, flip X (MediaPipe screen space is already mirrored if camera is)
-                    // but we might need to sync it with the Three.js coordinate system
                     if (isMirror) x = -x;
                 }
 
@@ -125,18 +147,29 @@ export default class Hand3DController {
         });
 
         // 2. Update Bone Segments
+        const targetWorldPos = new THREE.Vector3();
         this.boneConnections.forEach((conn, i) => {
-            const start = this.joints[conn[0]].position;
-            const end = this.joints[conn[1]].position;
+            const startJoint = this.joints[conn[0]];
+            const endJoint = this.joints[conn[1]];
             const segment = this.segments[i];
 
-            if (segment) {
-                const distance = start.distanceTo(end);
+            if (segment && startJoint.visible && endJoint.visible) {
+                const startPos = startJoint.position;
+                const endPos = endJoint.position;
+
+                const distance = startPos.distanceTo(endPos);
                 segment.scale.y = distance;
-                segment.position.copy(start).lerp(end, 0.5);
-                segment.lookAt(end);
+                segment.position.copy(startPos).lerp(endPos, 0.5);
+
+                // CRITICAL FIX: lookAt needs a WORLD position.
+                // Since joints are siblings in handGroup, we must get the world position of the target.
+                endJoint.getWorldPosition(targetWorldPos);
+                segment.lookAt(targetWorldPos);
+
                 segment.rotateX(Math.PI / 2);
                 segment.visible = true;
+            } else if (segment) {
+                segment.visible = false;
             }
         });
 

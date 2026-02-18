@@ -225,8 +225,8 @@ class GestureDetector {
             [5, 9], [9, 13], [13, 17] // Palm
         ];
 
-        ctx.strokeStyle = '#00FF00';
-        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#00f2ff';
+        ctx.lineWidth = 1.5;
         ctx.beginPath(); // Start single path for all lines
 
         connections.forEach(([start, end]) => {
@@ -238,7 +238,7 @@ class GestureDetector {
         ctx.stroke(); // Single stroke call is much faster
 
         // Draw landmarks
-        ctx.fillStyle = '#FF0000';
+        ctx.fillStyle = '#ffffff';
         landmarks.forEach((landmark, index) => {
             const x = landmark.x * this.canvas.width;
             const y = landmark.y * this.canvas.height;
@@ -268,8 +268,8 @@ class GestureDetector {
         // Draw Green Lines connecting finger tips
         // Tips: Thumb(4), Index(8), Middle(12), Ring(16), Pinky(20)
         const tipIndices = [4, 8, 12, 16, 20];
-        ctx.strokeStyle = '#00FF00';
-        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#00f2ff';
+        ctx.lineWidth = 1;
         ctx.beginPath();
         for (let i = 0; i < tipIndices.length; i++) {
             const tip = landmarks[tipIndices[i]];
@@ -292,7 +292,7 @@ class GestureDetector {
 
 
         // Draw Palm Center as a larger red dot
-        ctx.fillStyle = '#FF0000';
+        ctx.fillStyle = '#00f2ff';
         ctx.beginPath();
         ctx.arc(
             palmCenter.x * this.canvas.width,
