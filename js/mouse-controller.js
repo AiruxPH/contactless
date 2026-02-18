@@ -12,6 +12,7 @@ export default class MouseController {
         this.isDown = false;
         this.isDragging = false;
         this.isPinchingZoom = false; // Track pinch state for zoom visuals
+        this.isZoomLocked = false;   // Stay in zoom mode even if cursor moves away
 
         // Physics
         this.smoothingFactor = 0.2; // 0.2 = heavy smoothing
@@ -59,8 +60,14 @@ export default class MouseController {
             this.handlePinkyClick();
         } else if (gesture === 'pinch-start') {
             this.isPinchingZoom = true;
+            // Immediate check if we should lock zoom
+            const elem = document.elementFromPoint(this.cursorX, this.cursorY);
+            if (elem && elem.closest('#zoom-target')) {
+                this.isZoomLocked = true;
+            }
         } else if (gesture === 'pinch-end') {
             this.isPinchingZoom = false;
+            this.isZoomLocked = false;
         }
     }
 
@@ -212,18 +219,28 @@ export default class MouseController {
             this.cursor.style.transform = magnetized ? 'translate(-50%, -50%) scale(1.2)' : 'translate(-50%, -50%) scale(1.0)';
         }
 
-        // Check if hovering zoom target
+        // Check if hovering zoom target OR already locked in zoom
         const elem = document.elementFromPoint(this.cursorX, this.cursorY);
-        const isZoomTarget = elem && elem.closest('#zoom-target');
+        const isHoveringZoom = elem && elem.closest('#zoom-target');
 
-        if (isZoomTarget && this.currentPinchDistance !== undefined) {
-            const minD = 0.03;
-            const maxD = 0.15;
+        // ZOOM LOGIC: Active if hovering OR locked (current pinch in progress)
+        if ((isHoveringZoom || this.isZoomLocked) && this.currentPinchDistance !== undefined) {
+            // 1. Widen thresholds for natural hand movement
+            const minD = 0.3; // Fully pinched
+            const maxD = 0.8; // Wide open
+
+            // 2. Normalize to 0...1
             const clampedD = Math.min(Math.max(this.currentPinchDistance, minD), maxD);
-            const t = (clampedD - minD) / (maxD - minD);
-            const targetZoom = 0.5 + (t * 2.0);
+            let t = (clampedD - minD) / (maxD - minD);
 
-            const lerpFactor = 0.1;
+            // 3. Non-linear mapping (Exponential curve for smoother start, faster end)
+            // Power of 1.5 gives more precision in the "tight" range
+            const smoothedT = Math.pow(t, 1.5);
+
+            // 4. Calculate target zoom (0.5x to 3.0x range)
+            const targetZoom = 0.5 + (smoothedT * 2.5);
+
+            const lerpFactor = 0.15; // Slightly faster reaction
             this.currentZoom = this.currentZoom + (targetZoom - this.currentZoom) * lerpFactor;
 
             if (this.zoomElement) {
