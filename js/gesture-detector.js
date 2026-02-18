@@ -105,8 +105,9 @@ class GestureDetector {
                         this.detectGesture(
                             results.landmarks[0],
                             results.worldLandmarks ? results.worldLandmarks[0] : null,
-                            results.handedness ? results.handedness[0] : null
+                            results.handedness && results.handedness[0] ? results.handedness[0][0] : null
                         );
+
 
 
                         this.emitStatus('handDetected', true);
