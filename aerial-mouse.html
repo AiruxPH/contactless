@@ -64,13 +64,14 @@
         }
 
         .zoom-target::after {
-            content: 'Hover & Open/Close Hand to Zoom';
+            content: 'Use Middle-Finger Lever + Pinch to Zoom';
             position: absolute;
-            bottom: 10px;
-            font-size: 0.9em;
-            background: rgba(0, 0, 0, 0.5);
-            padding: 5px 10px;
-            border-radius: 4px;
+            bottom: -30px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            font-size: 0.85em;
+            color: #666;
         }
 
         #camera-wrapper {
@@ -125,18 +126,32 @@
     <div class="mouse-playground">
         <div class="stats-panel">
             <h4>Mouse Stats</h4>
-            <div>X: <span id="cursor-x">0</span></div>
-            <div>Y: <span id="cursor-y">0</span></div>
-            <div>State: <span id="cursor-state" style="font-weight: bold; color: #666;">Hover</span></div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-size: 0.9em;">
+                <span>X:</span> <span id="cursor-x" style="font-family: monospace;">0</span>
+                <span>Y:</span> <span id="cursor-y" style="font-family: monospace;">0</span>
+                <span>State:</span> <span id="cursor-state" style="font-weight: bold; color: #666;">Hover</span>
+                <span>Zoom Lever:</span> <span id="lever-status" style="font-weight: bold; color: #999;">Released</span>
+            </div>
+        </div>
+
+        <div class="instructions-panel"
+            style="position: absolute; top: 130px; left: 20px; background: rgba(255, 255, 255, 0.9); padding: 15px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); width: 200px; font-size: 0.85em;">
+            <h4 style="margin-bottom: 8px;">Controls</h4>
+            <ul style="padding-left: 18px; margin: 0; color: #444;">
+                <li><strong>Move:</strong> Point Index Finger</li>
+                <li><strong>Click:</strong> Snap Pinky Closed</li>
+                <li><strong>Zoom Lever:</strong> Hold Middle Finger Closed</li>
+                <li><strong>Zoom:</strong> Pinch (while Lever is held)</li>
+            </ul>
         </div>
 
         <button class="target-button" id="click-target">Click Me!</button>
 
         <div class="zoom-target" id="zoom-target">
-            Zoomable Content
+            Zoomable Image
         </div>
 
-        <div id="action-log" style="color: #666; margin-top: 20px; font-weight: bold; height: 30px;">
+        <div id="action-log" style="color: #666; margin-top: 40px; font-weight: bold; height: 30px;">
             Waiting for action...
         </div>
     </div>
@@ -247,8 +262,15 @@
                 if (mouseController) {
                     document.getElementById('cursor-x').textContent = Math.round(mouseController.cursorX);
                     document.getElementById('cursor-y').textContent = Math.round(mouseController.cursorY);
-                    document.getElementById('cursor-state').textContent = mouseController.isDragging ? 'DRAGGING' : (mouseController.isDown ? 'DOWN' : 'HOVER');
-                    document.getElementById('cursor-state').style.color = mouseController.isDown ? '#dc3545' : '#666';
+
+                    const stateEl = document.getElementById('cursor-state');
+                    stateEl.textContent = mouseController.isDragging ? 'DRAGGING' : (mouseController.isDown ? 'DOWN' : 'HOVER');
+                    stateEl.style.color = mouseController.isDown ? '#dc3545' : '#666';
+
+                    const leverEl = document.getElementById('lever-status');
+                    const isLeverActive = mouseController.isMiddlePinch;
+                    leverEl.textContent = isLeverActive ? 'HOLDING (Zoom ON)' : 'Released';
+                    leverEl.style.color = isLeverActive ? '#ef6c00' : '#999';
                 }
             }, 100);
         }
