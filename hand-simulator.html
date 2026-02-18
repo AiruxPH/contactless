@@ -195,7 +195,7 @@
             console.log("Hand Simulator: Initializing components...");
             const cameraManager = new CameraManager(video);
             const gestureDetector = new GestureDetector(video, canvas);
-            gestureDetector.enableDebugDrawing = true; // Temporary for visibility debug
+            gestureDetector.enableDebugDrawing = false; // Temporary for visibility debug
 
             // 2. Setup 3D Simulator
             const threeCanvas = document.getElementById('three-canvas');
