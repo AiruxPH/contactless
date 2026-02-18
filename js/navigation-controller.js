@@ -63,9 +63,13 @@ class NavigationController {
             const { type, data } = e.detail;
             if (type === 'handDetected') {
                 this.handDetected = data;
+                if (!data) {
+                    this.stopContinuousScroll();
+                }
                 this.updateStatus();
             }
         });
+
 
         // Listen for mapping updates
         window.addEventListener('mappingUpdated', () => {
@@ -89,9 +93,10 @@ class NavigationController {
                 }
 
                 // Update intensity dynamically (normalized)
-                const maxAngle = 45;
+                const maxAngle = 55; // Sync with Facing Guard
                 const intensity = (Math.abs(angle) - deadzone) / (maxAngle - deadzone);
                 this.currentContinuousIntensity = Math.min(Math.max(intensity, 0.2), 3.0);
+
             }
         });
 
@@ -117,10 +122,19 @@ class NavigationController {
         // Handle continuous gesture lifecycle
         if (gesture.includes('tilt')) {
             // Special handling for tilts as they are continuous
-            // Extract angle data if available for variable speed
-            const tiltIntensity = data && data.angle ? Math.abs(data.angle) / 0.3 : 1;
-            this.startContinuousScroll(gesture, tiltIntensity);
+            // Extract angle data if available for variable speed (Unit Sync: Degrees)
+            const deadzone = 12;
+            const maxAngle = 55;
+            let intensity = 1;
+
+            if (data && typeof data.angle === 'number') {
+                const angle = Math.abs(data.angle);
+                intensity = (angle - deadzone) / (maxAngle - deadzone);
+                intensity = Math.min(Math.max(intensity, 0.2), 3.0);
+            }
+            this.startContinuousScroll(gesture, intensity);
         } else if (gesture === 'pinch-start') {
+
             this.handleClick();
         } else if (gesture === 'pinch-end') {
             // No specific action for end yet

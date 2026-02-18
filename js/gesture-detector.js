@@ -355,15 +355,13 @@ class GestureDetector {
             worldWristZ = wWrist.z;
 
             // Pitch: Vertical Vector (Wrist -> Middle MCP)
-            const pX = wMiddleMCP.x - wWrist.x;
-            const pY = wMiddleMCP.y - wWrist.y;
-            const pZ = wMiddleMCP.z - wWrist.z;
-            // atan2(depth, vertical) -> 0 is straight up, negative is towards, positive is away
-            pitchDegrees = Math.atan2(pZ, -pY) * (180 / Math.PI);
+            // Median Formula for zero-pivot orientation
+            const dy = worldLandmarks[9].y - worldLandmarks[0].y;
+            const dz = worldLandmarks[9].z - worldLandmarks[0].z;
+            pitchDegrees = Math.atan2(dz, -dy) * (180 / Math.PI);
 
             // Yaw: Horizontal Vector (Index MCP -> Pinky MCP)
             const yX = wPinkyMCP.x - wIndexMCP.x;
-            const yY = wPinkyMCP.y - wIndexMCP.y;
             const yZ = wPinkyMCP.z - wIndexMCP.z;
 
             // atan2(depth, horizontal)
@@ -375,8 +373,9 @@ class GestureDetector {
                 yawDegrees = -yawDegrees;
             }
 
-            // Facing Guard Thresholds
-            isFacingCamera = Math.abs(pitchDegrees) < 40 && Math.abs(yawDegrees) < 45;
+            // Facing Guard Thresholds (Relaxed)
+            isFacingCamera = Math.abs(pitchDegrees) < 55 && Math.abs(yawDegrees) < 60;
+
         }
 
         // Calculate absolute palm angle for legacy 2D Tilt (Continuous Scroll fallback)
@@ -449,15 +448,20 @@ class GestureDetector {
         let data = null;
 
         // TILT DETECTION (Variable Scroll)
-        const tiltThreshold = 0.35;
-        if (Math.abs(angleDiff) > tiltThreshold) {
-            if (Math.abs(angleDiff) > 1.25) {
-                gesture = angleDiff > 0 ? 'tilt-down' : 'tilt-up';
+        // User Spec: Unit Sync (Degrees)
+        const tiltThreshold = 20; // Degrees
+        if (Math.abs(pitchDegrees) > tiltThreshold || Math.abs(yawDegrees) > tiltThreshold) {
+            if (Math.abs(pitchDegrees) > Math.abs(yawDegrees)) {
+                // Vertical priority
+                gesture = pitchDegrees > 0 ? 'tilt-down' : 'tilt-up';
+                data = { angle: pitchDegrees };
             } else {
-                gesture = angleDiff > 0 ? 'tilt-left' : 'tilt-right';
+                // Horizontal priority
+                gesture = yawDegrees > 0 ? 'tilt-left' : 'tilt-right';
+                data = { angle: yawDegrees };
             }
-            data = { angle: angleDiff };
         }
+
 
         // SWIPE vs FLICK LOGIC
         let palmDeltaX = 0;
