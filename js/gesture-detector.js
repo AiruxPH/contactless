@@ -25,6 +25,7 @@ class GestureDetector {
         // Clench-to-Pause State
         this.clenchStartTime = null;
         this.isPaused = false;
+        this.trackingLossTime = null; // Buffer for accidental resets
 
         this.init();
     }
@@ -67,9 +68,9 @@ class GestureDetector {
                 },
                 runningMode: "VIDEO",
                 numHands: 1,
-                minHandDetectionConfidence: 0.3,  // Lowered from 0.5 for better tracking
-                minHandPresenceConfidence: 0.3,   // Lowered from 0.5 for better tracking
-                minTrackingConfidence: 0.3        // Lowered from 0.5 for better tracking
+                minHandDetectionConfidence: 0.3,
+                minHandPresenceConfidence: 0.4,   // Slightly increased to filter "ghost" tracking
+                minTrackingConfidence: 0.3
             });
 
             console.log("Hand Landmarker initialized successfully");
@@ -119,13 +120,26 @@ class GestureDetector {
 
 
                         this.emitStatus('handDetected', true);
+                        this.trackingLossTime = null; // Reset persistence timer
                     } else {
+                        const now = performance.now();
                         this.emitStatus('handDetected', false);
                         this.lastHandPosition = null;
-                        this.lastPalmAngle = null; // Reset palm angle tracking
-                        // Auto-Reset Pause state on tracking loss
-                        this.isPaused = false;
-                        this.clenchStartTime = null;
+                        this.lastPalmAngle = null;
+
+                        // Auto-Reset Pause state on tracking loss - WITH PERSISTENCE
+                        if (this.isPaused) {
+                            if (this.trackingLossTime === null) {
+                                this.trackingLossTime = now;
+                            } else if (now - this.trackingLossTime > 1500) { // 1.5s Grace Period
+                                this.isPaused = false;
+                                this.clenchStartTime = null;
+                                this.trackingLossTime = null;
+                                console.log("System RESET: Tracking lost for >1.5s");
+                            }
+                        } else {
+                            this.clenchStartTime = null;
+                        }
                     }
                 }
             } catch (error) {
@@ -180,7 +194,7 @@ class GestureDetector {
             }
         }
 
-        // Draw connections
+        // Draw connections (BATCHED)
         const connections = [
             [0, 1], [1, 2], [2, 3], [3, 4], // Thumb
             [0, 5], [5, 6], [6, 7], [7, 8], // Index
@@ -192,16 +206,15 @@ class GestureDetector {
 
         ctx.strokeStyle = '#00FF00';
         ctx.lineWidth = 2;
+        ctx.beginPath(); // Start single path for all lines
 
         connections.forEach(([start, end]) => {
             const startPoint = landmarks[start];
             const endPoint = landmarks[end];
-
-            ctx.beginPath();
             ctx.moveTo(startPoint.x * this.canvas.width, startPoint.y * this.canvas.height);
             ctx.lineTo(endPoint.x * this.canvas.width, endPoint.y * this.canvas.height);
-            ctx.stroke();
         });
+        ctx.stroke(); // Single stroke call is much faster
 
         // Draw landmarks
         ctx.fillStyle = '#FF0000';
