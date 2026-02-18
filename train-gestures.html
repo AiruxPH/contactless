@@ -88,9 +88,13 @@
             }
         }
 
-        #camera-container {
+        /* Named differently to avoid conflict with global #camera-container fixed style */
+        #training-camera-wrapper {
+            position: relative;
             width: 100%;
             height: 100%;
+            border-radius: 12px;
+            overflow: hidden;
         }
 
         /* Nav Header */
@@ -146,7 +150,7 @@
             <!-- Visual Hand Cursor -->
             <div id="hand-cursor"></div>
 
-            <div id="camera-container">
+            <div id="training-camera-wrapper">
                 <video id="webcam" autoplay playsinline muted
                     style="width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1);"></video>
                 <canvas id="output"
