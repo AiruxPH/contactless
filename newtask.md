@@ -1,19 +1,21 @@
-# Task: Emergency Stability & Error Fix
+# Task: Post-Crash Stabilization & Performance Cleanup
 
-## Objective
-Resolve the 'errors everywhere' by implementing strict data validation and pause-state synchronization across all controllers.
+## 1. Landmark Array Guard (`js/gesture-detector.js`)
+To prevent the 'Cannot read properties of undefined' error from ever returning:
+- At the very top of `drawHandLandmarks` and `detectGesture`, add a strict length check: 
+  `if (!landmarks || landmarks.length < 21) return;`.
 
-## Technical Requirements
+## 2. Sync Handedness Data (`js/gesture-detector.js`)
+- Update the handedness parsing to match the latest MediaPipe standard:
+  Change `results.handedness[0][0]` to `results.handedness[0]`.
+- Why: This ensures your `yawDegrees` (Horizontal Tilt) math receives the correct 'Left' or 'Right' label.
 
-### 1. Update `js/navigation-controller.js`
-- **Pause Synchronization:** In the `handFrame` listener, if `e.detail.isPaused` is true, immediately `return` and set `this.activeAxis = null`.
-- **Velocity Floor:** In `startPhysicsLoop`, if `Math.abs(this.velocityX) < 0.2` and `Math.abs(this.velocityY) < 0.2`, force both to exactly `0`. 
-- **Safety:** Wrap `window.scrollBy` in a check: `if (speed > 0) { ... }` to prevent redundant browser reflows.
+## 3. Restore the "Noise Gate" (`js/navigation-controller.js`)
+Ensure the jitter fix we discussed is fully active:
+- In `startPhysicsLoop`, verify that if the combined velocity is `< 0.8`, it is forced to `0`.
+- In the `handFrame` listener, ensure the 70/30 smoothing is applied to intensities:
+  `this.pitchIntensity = (this.pitchIntensity * 0.7) + (newIntensity * 0.3);`.
 
-### 2. Update `js/gesture-detector.js`
-- **Landmark Guard:** At the very start of `detectGesture`, add: `if (!landmarks || landmarks.length < 21) return;`.
-- **Isolation Fix:** In the Pinky Click logic, ensure `landmarks[16]` (Ring) and `landmarks[13]` (Ring MCP) are checked for existence before calculating `ringDistance`.
-
-### 3. Update `js/mouse-controller.js`
-- **Pause Lock:** In `updateCursorSmoothing`, when `this.isPaused` is true, explicitly set `this.cursor.style.transition = 'none'` to kill hardware-accelerated jitter.
-- **State Reset:** Ensure that when `isPaused` becomes false, the `targetX/Y` are instantly synced to the current `cursorX/Y` to prevent the cursor from 'jumping' across the screen.
+## 4. Optimization for Three.js Simulator
+- Ensure that the `emitHandFrame` call happens **before** you pass landmarks to any Three.js functions. 
+- This guarantees the Mouse and Navigation controllers get the 'Clean' 2D data before the simulator potentially transforms it for 3D space.
