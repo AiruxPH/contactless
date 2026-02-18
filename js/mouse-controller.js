@@ -61,6 +61,8 @@ export default class MouseController {
             this.targetX = data.cursor.x;
             this.targetY = data.cursor.y;
         }
+
+        this.isPaused = data.isPaused;
     }
 
     handleGesture(gesture) {
@@ -149,6 +151,9 @@ export default class MouseController {
         const now = Date.now();
         const dt = (now - this.lastUpdateTime) / 1000;
         this.lastUpdateTime = now;
+
+        // 0. PAUSE GUARD: Lock everything if clench-paused
+        if (this.isPaused) return;
 
         // 1. CLICK SHIELD: Freeze coordinates if we just clicked
         if (now - this.clickShieldTime < this.clickShieldDuration) {
@@ -241,6 +246,15 @@ export default class MouseController {
             this.cursor.style.backgroundColor = this.isDown ? '#00FF00' : (this.isMiddlePinch ? 'rgba(255, 165, 0, 0.4)' : 'transparent');
 
             this.cursor.style.transform = magnetized ? 'translate(-50%, -50%) scale(1.2)' : 'translate(-50%, -50%) scale(1.0)';
+
+            // 6. PAUSE OVERLAY
+            if (this.isPaused) {
+                this.cursor.style.filter = 'grayscale(1) opacity(0.5)';
+                this.cursor.style.border = '2px dashed #fff';
+            } else {
+                this.cursor.style.filter = 'none';
+                this.cursor.style.border = '2px solid rgba(255,255,255,0.8)';
+            }
         }
 
         // Check if hovering zoom target OR already locked in zoom
@@ -275,7 +289,11 @@ export default class MouseController {
             if (stateEl) stateEl.textContent = `ZOOMING (${Math.round(t * 100)}%)`;
         } else {
             const stateEl = document.getElementById('cursor-state');
-            if (stateEl) stateEl.textContent = this.isDown ? 'CLICKING' : 'HOVER';
+            if (this.isPaused) {
+                if (stateEl) stateEl.textContent = 'SYSTEM PAUSED 🔒 (Open Hand to Resume)';
+            } else {
+                if (stateEl) stateEl.textContent = this.isDown ? 'CLICKING' : 'HOVER';
+            }
         }
     }
 

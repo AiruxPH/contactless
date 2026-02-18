@@ -66,12 +66,16 @@ class NavigationController {
 
         // "Joystick Drift" - Continuous Tracking & Axis Locking
         window.addEventListener('handFrame', (e) => {
-            const { pitch, yaw, handDetected, handOpen, isFacingCamera } = e.detail;
+            const { pitch, yaw, handDetected, handOpen, isFacingCamera, isPaused } = e.detail;
 
-            if (!handDetected) {
+            if (!handDetected || isPaused) {
                 this.activeAxis = null;
                 this.pitchIntensity = 0;
                 this.yawIntensity = 0;
+                if (isPaused) {
+                    this.lastAction = 'SYSTEM PAUSED 🔒';
+                    this.updateStatus();
+                }
                 return;
             }
 

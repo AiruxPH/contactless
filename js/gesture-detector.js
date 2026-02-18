@@ -22,6 +22,10 @@ class GestureDetector {
         this.handStateHistory = [];
         this.maxHistory = 5;
 
+        // Clench-to-Pause State
+        this.clenchStartTime = null;
+        this.isPaused = false;
+
         this.init();
     }
 
@@ -119,6 +123,9 @@ class GestureDetector {
                         this.emitStatus('handDetected', false);
                         this.lastHandPosition = null;
                         this.lastPalmAngle = null; // Reset palm angle tracking
+                        // Auto-Reset Pause state on tracking loss
+                        this.isPaused = false;
+                        this.clenchStartTime = null;
                     }
                 }
             } catch (error) {
@@ -345,6 +352,23 @@ class GestureDetector {
         const rawPinchDistance = this.getNormalizedDistance(landmarks[4], landmarks[8], scale);
         const isOpen = this.isHandOpen(landmarks);
 
+        // CLENCH-TO-PAUSE LOGIC
+        if (!isOpen) {
+            if (this.clenchStartTime === null) {
+                this.clenchStartTime = now;
+            } else if (!this.isPaused && now - this.clenchStartTime > 1000) {
+                this.isPaused = true;
+                console.log("System PAUSED: Hand Clench detected.");
+            }
+        } else {
+            // Reset on full open
+            if (this.isPaused) {
+                console.log("System RESUMED: Hand Opened.");
+            }
+            this.isPaused = false;
+            this.clenchStartTime = null;
+        }
+
         // HAND GIMBAL SYSTEM (3D Orientation using World Landmarks)
         // User Spec: Use Wrist-to-Middle for Pitch, Index-to-Pinky for Yaw
         let pitchDegrees = 0;
@@ -416,7 +440,8 @@ class GestureDetector {
             isMiddlePinch: this.isMiddlePinch,
             isPinching: this.isPinching,
             handOpen: isOpen,
-            handDetected: true
+            handDetected: true,
+            isPaused: this.isPaused
         });
 
         // 2.5 Update Stability History
@@ -606,6 +631,8 @@ class GestureDetector {
     }
 
     emitGesture(gesture, data = null) {
+        if (this.isPaused) return; // Ignore gestures while paused
+
         this.gestureCallbacks.forEach(callback => callback(gesture, data));
 
         // Also emit as a CustomEvent for global listeners
